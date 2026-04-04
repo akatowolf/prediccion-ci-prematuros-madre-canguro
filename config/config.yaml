@@ -1,0 +1,3 @@
+data:
+  bucket: "prediccion-ci-prematuros"
+  file_path: "raw/datos.xlsx"
