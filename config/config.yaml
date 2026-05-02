@@ -1,3 +1,8 @@
 data:
-  bucket: "prediccion-ci-prematuros-316087912110-us-east-1-an"
-  file_path: "KMC-400-20y-libro  45-DatosCompletos.xlsx"
+  raw:
+    dir: data/raw
+    file: KMC-400-20y-libro-45-DatosCompletos.xlsx
+
+  processed:
+    dir: data/processed
+    file: kmc_dataset_procesado_completo.csv
