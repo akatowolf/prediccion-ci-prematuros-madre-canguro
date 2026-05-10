@@ -1,1 +1,4 @@
+environment:
+  PYTHONPATH: /Workspace/Repos/prediccion-ci-prematuros-madre-canguro
+
 command: ['streamlit', 'run', 'app.py']
