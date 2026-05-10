@@ -1,12 +1,23 @@
 import streamlit as st
 
-st.title("🧠 Insights Explorer")
+st.set_page_config(
+    page_title="Insights App",
+    layout="wide",
+)
 
-insights = [
-    "Aumento de riesgo nutricional",
-    "Mejora en desarrollo cognitivo",
-    "Anomalía en patrón de alimentación"
-]
+st.title("🧠 Insights App")
 
-for i in insights:
-    st.write("• " + i)
+st.markdown(
+    """
+    Bienvenido al sistema de análisis.
+
+    Usa el menú lateral para navegar:
+
+    - 📊 Characterisation
+    - 🧠 Insights Explorer
+    """
+)
+
+st.info(
+    "Selecciona una página desde la barra lateral"
+)
