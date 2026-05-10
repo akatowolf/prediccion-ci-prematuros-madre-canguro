@@ -1,4 +1,14 @@
-def run_characterisation_pipeline(state):
+
+from src.features.pca import compute_pca_projection
+from src.features.silhouette import compute_silhouette_scores
+from src.features.characterization import plot_centroid_heatmap 
+from src.features.characterization import build_heatmap_dataframe
+from src.features.characterization import compute_cluster_centroids
+from src.visualization.silhouette import plot_silhouette
+from src.visualization.pca import plot_pca_2d
+
+
+def run_characterization_pipeline(state):
 
     # =========================
     # UNPACK STATE

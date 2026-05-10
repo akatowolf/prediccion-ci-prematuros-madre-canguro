@@ -1,9 +1,7 @@
 import streamlit as st
 
 from config.settings import config
-from src.pipelines.characterisation_pipeline import (
-    run_characterisation_pipeline,
-)
+from src.pipelines.characterization_pipeline import run_characterization_pipeline
 from src.features.insights import generate_insights
 
 
@@ -46,7 +44,7 @@ if run_btn:
 
     with st.spinner("Running pipeline..."):
 
-        results = run_characterisation_pipeline(
+        results = run_characterization_pipeline(
             X_sc=X_sc,
             labels_go=labels_go,
             vars_ok=vars_ok,

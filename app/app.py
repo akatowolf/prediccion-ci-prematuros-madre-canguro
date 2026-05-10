@@ -1,10 +1,15 @@
 import streamlit as st
 import joblib
 
-from src.pipelines.characterisation_pipeline import (
-    run_characterisation_pipeline,
-)
 
+import sys
+from pathlib import Path
+
+# subimos al root del proyecto (source_code/)
+sys.path.append(str(Path(__file__).resolve().parents[1]))
+print( f"Current working directory: {Path(__file__).resolve().parents[1]}" )
+
+from src.pipelines.characterization_pipeline import run_characterization_pipeline
 st.title("🧠 Insights Explorer")
 
 
@@ -21,7 +26,7 @@ state = joblib.load("../data/post_processing/analysis_state.joblib")
 
 if st.button("Run analysis"):
 
-    results = run_characterisation_pipeline(
+    results = run_characterization_pipeline(
         state=state
     )
 
