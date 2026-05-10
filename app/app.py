@@ -1,23 +1,33 @@
 import streamlit as st
+import joblib
 
-st.set_page_config(
-    page_title="Insights App",
-    layout="wide",
+from src.pipelines.characterisation_pipeline import (
+    run_characterisation_pipeline,
 )
 
-st.title("🧠 Insights App")
+st.title("🧠 Insights Explorer")
 
-st.markdown(
-    """
-    Bienvenido al sistema de análisis.
 
-    Usa el menú lateral para navegar:
+# =========================
+# LOAD STATE
+# =========================
 
-    - 📊 Characterisation
-    - 🧠 Insights Explorer
-    """
-)
+state = joblib.load("../data/post_processing/analysis_state.joblib")
 
-st.info(
-    "Selecciona una página desde la barra lateral"
-)
+
+# =========================
+# RUN PIPELINE
+# =========================
+
+if st.button("Run analysis"):
+
+    results = run_characterisation_pipeline(
+        state=state
+    )
+
+    st.metric(
+        "Silhouette",
+        f"{results['sil_global']:.3f}"
+    )
+
+    st.pyplot(results["figures"]["pca_2d"])

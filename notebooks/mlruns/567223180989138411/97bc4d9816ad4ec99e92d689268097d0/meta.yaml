@@ -1,0 +1,15 @@
+artifact_uri: /Workspace/Users/a.echeverrig@uniandes.edu.co/prediccion-ci-prematuros-madre-canguro/notebooks/mlruns/567223180989138411/97bc4d9816ad4ec99e92d689268097d0/artifacts
+end_time: 1778034316845
+entry_point_name: ''
+experiment_id: '567223180989138411'
+lifecycle_stage: active
+run_id: 97bc4d9816ad4ec99e92d689268097d0
+run_name: P2_velocity_focus
+run_uuid: 97bc4d9816ad4ec99e92d689268097d0
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1778034314374
+status: 3
+tags: []
+user_id: spark-6fafe784-bd65-456a-b3de-2d

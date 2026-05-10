@@ -1,0 +1,21 @@
+artifact_path: model
+databricks_runtime: client.2.5-aarch64-scala2.12
+flavors:
+  python_function:
+    data: model.xgb
+    env:
+      conda: conda.yaml
+      virtualenv: python_env.yaml
+    loader_module: mlflow.xgboost
+    python_version: 3.11.10
+  xgboost:
+    code: null
+    data: model.xgb
+    model_class: xgboost.sklearn.XGBClassifier
+    model_format: xgb
+    xgb_version: 3.2.0
+mlflow_version: 2.11.4
+model_size_bytes: 201162
+model_uuid: 6bf5886fdc5e49bf85e659c6aee9d697
+run_id: 4e21cfb21e1b405d887b84ce4709e8bc
+utc_time_created: '2026-05-06 02:25:10.065901'
