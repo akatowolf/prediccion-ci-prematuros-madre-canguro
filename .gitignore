@@ -87,3 +87,20 @@ target/
 
 # Mypy cache
 .mypy_cache/
+# Dependencias de Node.js (Frontend)
+node_modules/
+dist/
+dist-ssr/
+.eslintcache
+
+# Dependencias de Python (Backend)
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+env/
+.env
+
+# Archivos del sistema operativo
+.DS_Store
+Thumbs.db
