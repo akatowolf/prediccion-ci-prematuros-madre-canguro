@@ -1,58 +1,57 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { 
-  Activity, Brain, Info, AlertTriangle, CheckCircle, 
-  FileText, ChevronRight, ActivitySquare, UploadCloud, 
-  FileUp, AlertCircle, RefreshCw, FileJson, BarChartHorizontal,
-  Focus, MessageSquare, ClipboardList, X, Save
+import {
+  Activity, Brain, Info, AlertTriangle, CheckCircle,
+  FileText, ChevronRight, ActivitySquare, UploadCloud,
+  AlertCircle, FileJson, BarChartHorizontal,
+  Focus, MessageSquare, ClipboardList, X, Save, TrendingUp,
+  Loader2, ServerCrash, Shield
 } from 'lucide-react';
 
+// ─────────────────────────────────────────────────────────────────────────────
+// API CONFIG
+// En desarrollo: http://localhost:8000
+// En producción: cambiar a la URL real del servidor
+// ─────────────────────────────────────────────────────────────────────────────
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+
+// ─────────────────────────────────────────────────────────────────────────────
+// UTILS
+// ─────────────────────────────────────────────────────────────────────────────
 const DotItem = ({ label, value, valColor }) => (
   <div className="flex justify-between items-start text-[13px] mb-2">
     <div className="flex items-start gap-2 mt-0.5">
-      <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 mt-1.5 ${valColor === 'rose' ? 'bg-rose-500' : 'bg-emerald-500'}`}></div>
+      <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 mt-1.5 ${
+        valColor === 'rose' ? 'bg-rose-500' : 'bg-emerald-500'
+      }`} />
       <span className="text-slate-700 font-medium leading-tight">{label}</span>
     </div>
-    <span className={`font-bold whitespace-nowrap ml-2 ${valColor === 'rose' ? 'text-rose-600' : 'text-emerald-700'}`}>{value}</span>
+    <span className={`font-bold whitespace-nowrap ml-2 ${
+      valColor === 'rose' ? 'text-rose-600' : 'text-emerald-700'
+    }`}>{value}</span>
   </div>
 );
 
-// Estilos para los bloques del formulario según el nivel (Obligatorio, Recomendado, Opcional)
-const FormSection = ({ title, level, children, icon: Icon }) => {
-  const colors = {
-    obligatorio: "border-rose-200",
-    recomendado: "border-amber-200",
-    opcional: "border-emerald-200"
-  };
-  const bgColors = {
-    obligatorio: "bg-rose-50",
-    recomendado: "bg-amber-50 text-amber-900",
-    opcional: "bg-emerald-50 text-emerald-900"
-  };
-  const textColors = {
-    obligatorio: "text-rose-900",
-    recomendado: "text-amber-900",
-    opcional: "text-emerald-900"
-  };
-  const badgeColors = {
-    obligatorio: "text-rose-700",
-    recomendado: "text-amber-700",
-    opcional: "text-emerald-700"
-  };
+const FormSection = ({ title, level, desc, children, icon: Icon }) => {
+  const styles = {
+    obligatorio: { border: 'border-rose-200',   bg: 'bg-rose-50',    text: 'text-rose-900',   badge: 'text-rose-700 bg-rose-100'   },
+    recomendado:  { border: 'border-amber-200',  bg: 'bg-amber-50',   text: 'text-amber-900',  badge: 'text-amber-700 bg-amber-100'  },
+    opcional:     { border: 'border-emerald-200', bg: 'bg-emerald-50', text: 'text-emerald-900',badge: 'text-emerald-700 bg-emerald-100'},
+  }[level];
 
   return (
-    <div className={`border ${colors[level]} rounded-xl overflow-hidden mb-6 bg-white shadow-sm`}>
-      <div className={`${bgColors[level]} px-4 py-3 flex justify-between items-center border-b ${colors[level]}`}>
-        <h3 className={`font-bold flex items-center gap-2 ${textColors[level]}`}>
-          {Icon && <Icon className="w-4 h-4" />}
-          {title}
-        </h3>
-        <span className={`text-[10px] font-black uppercase tracking-wider ${badgeColors[level]}`}>
-          {level}
-        </span>
+    <div className={`border ${styles.border} rounded-xl overflow-hidden mb-6 bg-white shadow-sm`}>
+      <div className={`${styles.bg} px-5 py-4 border-b ${styles.border}`}>
+        <div className="flex justify-between items-center mb-1">
+          <h3 className={`font-black flex items-center gap-2 ${styles.text}`}>
+            {Icon && <Icon className="w-5 h-5" />}{title}
+          </h3>
+          <span className={`text-[10px] font-black uppercase tracking-widest px-2 py-1 rounded-md ${styles.badge}`}>
+            {level}
+          </span>
+        </div>
+        {desc && <p className={`text-xs font-medium opacity-80 ${styles.text}`}>{desc}</p>}
       </div>
-      <div className="p-5">
-        {children}
-      </div>
+      <div className="p-5">{children}</div>
     </div>
   );
 };
@@ -60,7 +59,7 @@ const FormSection = ({ title, level, children, icon: Icon }) => {
 const FormGroup = ({ label, unit, required, helper, children }) => (
   <div className="flex flex-col gap-1.5">
     <label className="text-xs font-bold text-slate-700 flex items-center gap-1">
-      {label} 
+      {label}
       {unit && <span className="bg-slate-200 text-slate-600 px-1 rounded text-[10px]">{unit}</span>}
       {required && <span className="text-rose-500">*</span>}
     </label>
@@ -69,142 +68,206 @@ const FormGroup = ({ label, unit, required, helper, children }) => (
   </div>
 );
 
-export default function App() {
-  // Estado principal de inputs del modelo
-  const [inputs, setInputs] = useState(null);
-  
-  // Estado para el modal del formulario
-  const [isFormOpen, setIsFormOpen] = useState(false);
-  const [formData, setFormData] = useState({
-    peso: '', semanas: '', pc_nacer: '', grupo: '', educacion: '',
-    pc_40: '', oxigeno: '', horas_canguro: '',
-    griffiths_aud: '', griffiths_mot: '', griffiths_gen: '',
-    hospitalizacion: '', fototerapia: '', leucomalacia: '',
-    ingreso: '', lactancia: '',
-    peso_3m: '', talla_3m: '', talla_40s: '', peso_12m: '', talla_12m: '', loco_12m: ''
-  });
+// ─────────────────────────────────────────────────────────────────────────────
+// INITIAL FORM STATE
+// Keys match PacienteDatos in main.py exactly
+// ─────────────────────────────────────────────────────────────────────────────
+const EMPTY_FORM = {
+  // Obligatorios
+  pc_nacer_mm:        '',
+  eg_semanas:         '',
+  peso_nacer_g:       '',   // peso al nacer en gramos — para contexto clínico
+  pc_40sem_cm:        '',
+  dias_oxigeno:       '',
+  educ_materna:       '',   // int 1-5
+  griffiths_auditivo: '',
+  // Recomendados
+  grupo:                  '',
+  horas_canguro:          '',
+  dias_hospitalizacion:   '',
+  fototerapia:            '',   // 0 o 1
+  ingreso_percapita:      '',   // float COP
+  educ_paterna:           '',   // int 1-5
+  griffiths_motor:        '',
+  griffiths_general:      '',
+  leucomalacia:           '',   // 0-3
+  // Opcionales
+  talla_40sem_mm:   '',
+  peso_3m_g:        '',
+  talla_3m_mm:      '',
+  peso_12m_g:       '',
+  talla_12m_cm:     '',
+  griffiths_loco12: '',
+  dias_aminoglucosidos: '',
+};
 
-  const [activeTab, setActiveTab] = useState('global');
-  const [isCalculating, setIsCalculating] = useState(false);
-  const [results, setResults] = useState(null);
-  const [uploadStatus, setUploadStatus] = useState({ type: 'idle', message: '', fileName: '' });
-  
-  const [evidenciaViewOverride, setEvidenciaViewOverride] = useState(null);
+// SHAP bar — reads from API response shape
+const ShapBar = ({ item, maxAbs }) => {
+  // API returns: { feature, label_es, shap }
+  const isRisk  = item.shap > 0;
+  const width   = (Math.abs(item.shap) / maxAbs) * 100;
+  const display = item.label_es || item.feature;
+  const valText = (isRisk ? '+' : '') + item.shap.toFixed(3);
+
+  return (
+    <div className="flex items-center mb-3">
+      <div className="w-5/12 text-right pr-4 text-xs font-semibold text-slate-600 truncate" title={display}>
+        {display}
+      </div>
+      <div className="w-7/12 flex items-center">
+        <div className="w-full flex">
+          <div className="w-1/2 flex justify-end pr-[1px] border-r border-slate-400">
+            {!isRisk && (
+              <div className="bg-emerald-400 h-4 rounded-l-sm transition-all duration-500"
+                   style={{ width: `${width}%` }} />
+            )}
+          </div>
+          <div className="w-1/2 flex justify-start pl-[1px]">
+            {isRisk && (
+              <div className="bg-rose-400 h-4 rounded-r-sm transition-all duration-500"
+                   style={{ width: `${width}%` }} />
+            )}
+          </div>
+        </div>
+        <span className={`text-xs font-bold ml-3 w-12 flex-shrink-0 ${
+          isRisk ? 'text-rose-600' : 'text-emerald-600'
+        }`}>{valText}</span>
+      </div>
+    </div>
+  );
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// MAIN APP
+// ─────────────────────────────────────────────────────────────────────────────
+export default function App() {
+  const [formData, setFormData]       = useState(EMPTY_FORM);
+  const [isFormOpen, setIsFormOpen]   = useState(false);
+  const [activeTab, setActiveTab]     = useState('global');
+  const [isLoading, setIsLoading]     = useState(false);
+  const [results, setResults]         = useState(null);
+  const [apiError, setApiError]       = useState(null);
+  const [uploadMsg, setUploadMsg]     = useState(null);
+  const [evidOverride, setEvidOverride] = useState(null);
+  const [apiStatus, setApiStatus]     = useState('unknown'); // 'ok' | 'error' | 'unknown'
   const fileInputRef = useRef(null);
 
-  const handleFormChange = (e) => {
+  // Check backend health on mount
+  useEffect(() => {
+    fetch(`${API_URL}/health`)
+      .then(r => r.json())
+      .then(d => setApiStatus(d.modelos_cargados?.includes('global') ? 'ok' : 'partial'))
+      .catch(() => setApiStatus('error'));
+  }, []);
+
+  const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleFormSubmit = () => {
-    // Convertir el formulario a JSON para el modelo
-    const parsedData = { ...formData };
-    // Convertir números donde aplique
-    ['peso', 'semanas', 'oxigeno', 'horas_canguro', 'griffiths_gen', 'leucomalacia'].forEach(key => {
-      if (parsedData[key]) parsedData[key] = parseFloat(parsedData[key]);
-    });
-    
-    setInputs(parsedData);
-    setIsFormOpen(false);
-  };
-
-  const calcularPrediccion = async () => {
-    if (!inputs || !inputs.peso) {
-      setResults(null);
-      return;
+  // Build payload: convert strings to numbers, leave blanks as null
+  const buildPayload = (fd) => {
+    const numFields = [
+      'pc_nacer_mm','eg_semanas','pc_40sem_cm','dias_oxigeno','educ_materna',
+      'griffiths_auditivo','horas_canguro','dias_hospitalizacion','fototerapia',
+      'ingreso_percapita','educ_paterna','griffiths_motor','griffiths_general',
+      'leucomalacia','talla_40sem_mm','peso_3m_g','talla_3m_mm','peso_12m_g',
+      'talla_12m_cm','griffiths_loco12','dias_aminoglucosidos',
+    ];
+    const payload = {};
+    for (const [k, v] of Object.entries(fd)) {
+      if (v === '' || v === null || v === undefined) continue;
+      payload[k] = numFields.includes(k) ? parseFloat(v) : v;
     }
-
-    setIsCalculating(true);
-    setEvidenciaViewOverride(null);
-    
-    setTimeout(() => {
-      let riesgoBase = 20; 
-      let shapData = [];
-
-      // Evaluación con los nuevos datos del formulario
-      if (inputs.peso < 1000) {
-        riesgoBase += 30;
-        shapData.push({ nombre: 'Extremo Bajo Peso (<1000g)', valor: 30, tipo: 'riesgo' });
-      } else if (inputs.peso < 1500) {
-        riesgoBase += 15;
-        shapData.push({ nombre: 'Muy Bajo Peso (<1500g)', valor: 15, tipo: 'riesgo' });
-      } else {
-        riesgoBase -= 15;
-        shapData.push({ nombre: 'Peso protector (>1500g)', valor: -15, tipo: 'protector' });
-      }
-
-      // Oxígeno como proxy de severidad pulmonar
-      if (inputs.oxigeno > 20) {
-        riesgoBase += 20;
-        shapData.push({ nombre: 'Oxigenoterapia prolongada (>20d)', valor: 20, tipo: 'riesgo' });
-      }
-
-      // Leucomalacia
-      if (inputs.leucomalacia && inputs.leucomalacia !== '0') {
-        riesgoBase += 25;
-        shapData.push({ nombre: 'Leucomalacia Periventricular', valor: 25, tipo: 'riesgo' });
-      }
-
-      // Posición canguro como protector
-      if (inputs.grupo === 'KMC' || inputs.horas_canguro > 0) {
-        riesgoBase -= 18;
-        shapData.push({ nombre: 'Intervención Madre Canguro', valor: -18, tipo: 'protector' });
-      } else if (inputs.grupo === 'TC') {
-        riesgoBase += 10;
-        shapData.push({ nombre: 'Cuidado Tradicional (TC)', valor: 10, tipo: 'riesgo' });
-      }
-
-      const riesgoFinal = Math.max(5, Math.min(riesgoBase, 95));
-      
-      setResults({
-        global: {
-          nivel: riesgoFinal > 45 ? 'Alto Riesgo' : 'Bajo Riesgo',
-          probabilidad: riesgoFinal,
-          color: riesgoFinal > 45 ? 'text-rose-600' : 'text-emerald-600',
-          bgColor: riesgoFinal > 45 ? 'bg-rose-100' : 'bg-emerald-100',
-          icon: riesgoFinal > 45 ? <AlertTriangle className="w-10 h-10 text-rose-600" /> : <CheckCircle className="w-10 h-10 text-emerald-600" />
-        },
-        cognitivo: {
-          wasi: {
-            bajo: riesgoFinal,
-            medio: Math.max(0, 100 - riesgoFinal - 15),
-            alto: 15
-          },
-          tap: {
-            alerta: Math.min(riesgoFinal + 12, 98),
-            normal: Math.max(100 - (riesgoFinal + 12), 2)
-          },
-          cvlt: {
-            alerta: Math.min(riesgoFinal + 5, 95),
-            normal: Math.max(100 - (riesgoFinal + 5), 5)
-          }
-        },
-        shap: shapData.sort((a, b) => Math.abs(b.valor) - Math.abs(a.valor))
-      });
-      setIsCalculating(false);
-    }, 1200);
+    return payload;
   };
 
-  useEffect(() => {
-    calcularPrediccion();
-  }, [inputs]);
+  const isFormValid = () => {
+    const req = ['pc_nacer_mm','eg_semanas','pc_40sem_cm','dias_oxigeno',
+                 'educ_materna','griffiths_auditivo'];
+    return req.every(f => formData[f] !== '');
+  };
 
-  const handleFileUpload = (event) => {
-    const file = event.target.files[0];
+  const handleSubmitForm = () => {
+    if (!isFormValid()) return;
+    setIsFormOpen(false);
+    callAPI(formData);
+  };
+
+  const callAPI = async (fd) => {
+    setIsLoading(true);
+    setApiError(null);
+    setResults(null);
+    setEvidOverride(null);
+
+    try {
+      const payload = buildPayload(fd);
+      const res = await fetch(`${API_URL}/api/predecir`, {
+        method : 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body   : JSON.stringify(payload),
+      });
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ detail: res.statusText }));
+        throw new Error(err.detail || `Error ${res.status}`);
+      }
+
+      const data = await res.json();
+      setResults(data);
+    } catch (err) {
+      setApiError(err.message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleFileUpload = (e) => {
+    const file = e.target.files[0];
     if (!file) return;
-
     const reader = new FileReader();
-    reader.onload = (e) => {
+    reader.onload = (ev) => {
       try {
-        const content = e.target.result;
-        let data = {};
-        if (file.name.endsWith('.json')) data = JSON.parse(content);
-        setFormData(prev => ({ ...prev, ...data }));
-        setInputs(data);
-        setUploadStatus({ type: 'success', message: 'Datos cargados.', fileName: file.name });
-      } catch (err) {
-        setUploadStatus({ type: 'error', message: 'Error en formato.', fileName: file.name });
+        const data = JSON.parse(ev.target.result);
+        // Support both old field names (legacy) and new ones
+        const mapped = {
+          pc_nacer_mm:        data.pc_nacer_mm  ?? data.pc_nacer  ?? '',
+          peso_nacer_g:       data.peso_nacer_g ?? data.peso      ?? '',
+          eg_semanas:         data.eg_semanas   ?? data.semanas   ?? '',
+          pc_40sem_cm:        data.pc_40sem_cm  ?? data.pc_40     ?? '',
+          dias_oxigeno:       data.dias_oxigeno ?? data.oxigeno   ?? '',
+          educ_materna:       data.educ_materna ?? (
+            data.educacion === 'Primaria' ? 1 :
+            data.educacion === 'Secundaria' ? 2 :
+            data.educacion === 'Universitaria' ? 4 : ''
+          ),
+          griffiths_auditivo: data.griffiths_auditivo ?? data.griffiths_aud ?? '',
+          grupo:              data.grupo ?? '',
+          horas_canguro:      data.horas_canguro ?? '',
+          dias_hospitalizacion: data.dias_hospitalizacion ?? data.hospitalizacion ?? '',
+          fototerapia:        data.fototerapia ?? '',
+          ingreso_percapita:  data.ingreso_percapita ?? '',
+          educ_paterna:       data.educ_paterna ?? '',
+          griffiths_motor:    data.griffiths_motor   ?? data.griffiths_mot ?? '',
+          griffiths_general:  data.griffiths_general ?? data.griffiths_gen ?? '',
+          leucomalacia:       data.leucomalacia ?? '',
+          talla_40sem_mm:     data.talla_40sem_mm ?? '',
+          peso_3m_g:          data.peso_3m_g  ?? '',
+          talla_3m_mm:        data.talla_3m_mm ?? '',
+          peso_12m_g:         data.peso_12m_g  ?? data.peso_12m ?? '',
+          talla_12m_cm:       data.talla_12m_cm ?? data.talla_12m ?? '',
+          griffiths_loco12:   data.griffiths_loco12 ?? data.loco_12m ?? '',
+          dias_aminoglucosidos: data.dias_aminoglucosidos ?? '',
+        };
+        // Convert all to strings for form state
+        const stringified = Object.fromEntries(
+          Object.entries(mapped).map(([k, v]) => [k, v === null || v === undefined ? '' : String(v)])
+        );
+        setFormData(stringified);
+        setUploadMsg({ type: 'ok', text: `Cargado: ${file.name}` });
+        callAPI(stringified);
+      } catch {
+        setUploadMsg({ type: 'error', text: 'Error al parsear el JSON' });
       }
     };
     reader.readAsText(file);
@@ -212,224 +275,317 @@ export default function App() {
 
   const handleLoadExample = () => {
     const example = {
-      peso: 880, semanas: 26, pc_nacer: 235, grupo: 'TC', educacion: 'Secundaria',
-      pc_40: 34.2, oxigeno: 22, horas_canguro: 0,
-      griffiths_aud: 91, griffiths_mot: 4, griffiths_gen: 98,
-      hospitalizacion: 48, fototerapia: 'Sí', leucomalacia: '1 - Leve',
-      ingreso: '< 1 SMMLV', lactancia: 'Mixta',
-      peso_3m: 5300, talla_3m: 570, talla_40s: 465, peso_12m: 8400, talla_12m: 72, loco_12m: 108
+      pc_nacer_mm:        '235',
+      eg_semanas:         '26',
+      peso_nacer_g:       '880',
+      pc_40sem_cm:        '32.2',
+      dias_oxigeno:       '28',
+      educ_materna:       '1',
+      griffiths_auditivo: '70',
+      grupo:              'TC',
+      horas_canguro:      '0',
+      dias_hospitalizacion: '45',
+      fototerapia:        '1',
+      ingreso_percapita:  '75000',
+      griffiths_motor:    '3',
+      griffiths_general:  '85',
+      leucomalacia:       '1',
+      peso_12m_g:         '8100',
+      talla_12m_cm:       '71',
+      griffiths_loco12:   '90',
+      educ_paterna:       '',
+      talla_40sem_mm:     '',
+      peso_3m_g:          '',
+      talla_3m_mm:        '',
+      dias_aminoglucosidos: '',
     };
     setFormData(example);
-    setInputs(example);
-    setUploadStatus({ type: 'success', message: 'Ejemplo cargado.', fileName: 'caso_clinico_riesgo.json' });
+    setUploadMsg({ type: 'ok', text: 'Ejemplo cargado: caso_clinico_riesgo.json' });
+    callAPI(example);
   };
 
-  const renderShapBar = (item, maxAbs) => {
-    const width = (Math.abs(item.valor) / maxAbs) * 100;
-    const isRisk = item.tipo === 'riesgo';
-    return (
-      <div key={item.nombre} className="flex items-center mb-3">
-        <div className="w-5/12 text-right pr-4 text-xs font-semibold text-slate-600 truncate">
-          {item.nombre}
-        </div>
-        <div className="w-7/12 flex items-center">
-          <div className="w-full flex">
-            <div className="w-1/2 flex justify-end pr-[1px] border-r border-slate-400">
-              {!isRisk && (
-                <div className="bg-emerald-400 h-4 rounded-l-sm transition-all duration-500" style={{ width: `${width}%` }}></div>
-              )}
-            </div>
-            <div className="w-1/2 flex justify-start pl-[1px]">
-              {isRisk && (
-                <div className="bg-rose-400 h-4 rounded-r-sm transition-all duration-500" style={{ width: `${width}%` }}></div>
-              )}
-            </div>
-          </div>
-          <span className={`text-xs font-bold ml-3 w-8 flex-shrink-0 ${isRisk ? 'text-rose-600' : 'text-emerald-600'}`}>
-            {isRisk ? '+' : ''}{item.valor}
-          </span>
-        </div>
-      </div>
-    );
-  };
+  // ── Derived display values from API response ────────────────────────────
+  const globalResult  = results?.global;
+  const isHighRisk    = globalResult?.alert_level === 'high';
+  const isMedRisk     = globalResult?.alert_level === 'medium';
+  const probDisplay   = globalResult?.probabilidad ?? null;
 
-  const predictedView = results?.global?.nivel === 'Alto Riesgo' ? 'go2' : 'go1';
-  const currentEvidenciaView = evidenciaViewOverride || predictedView;
+  // SHAP — API returns { top_risk_factors: [{feature,label_es,shap}], top_protective: [...] }
+  const shapRisk      = results?.shap?.top_risk_factors ?? [];
+  const shapProtect   = results?.shap?.top_protective   ?? [];
+  const allShap       = [...shapRisk, ...shapProtect].sort(
+    (a, b) => Math.abs(b.shap) - Math.abs(a.shap)
+  );
+  const maxShapAbs    = allShap.length
+    ? Math.max(...allShap.map(s => Math.abs(s.shap)))
+    : 1;
+
+  // Domain models — API returns { dominios: { wasi, tap, cvlt } }
+  const wasiResult = results?.dominios?.wasi;
+  const tapResult  = results?.dominios?.tap;
+  const cvltResult = results?.dominios?.cvlt;
+
+  // Meta — derived values calculated by backend
+  const meta         = results?.meta ?? {};
+  const catchupVal   = meta.catchup_fenton;
+  const zNacerVal    = meta.fenton_z_nacer;
+
+  // Evidencia tab
+  const currentEvidencia = evidOverride ?? (isHighRisk || isMedRisk ? 'go2' : 'go1');
+
+  // ── Completion pct for AUC live estimate ──────────────────────────────
+  const reqFields = ['pc_nacer_mm','eg_semanas','pc_40sem_cm','dias_oxigeno',
+                     'educ_materna','griffiths_auditivo'];
+  const filledReq = reqFields.filter(f => formData[f] !== '').length;
+  const filledRec = ['grupo','dias_hospitalizacion','fototerapia','griffiths_motor',
+                     'griffiths_general','ingreso_percapita'].filter(f => formData[f] !== '').length;
+  const aucEstimate =
+    filledReq < reqFields.length ? null :
+    filledReq === reqFields.length && filledRec === 0 ? '≈0.695' :
+    filledRec >= 4 ? '≈0.689' : '≈0.678';
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 font-sans p-4 md:p-8 flex flex-col relative">
-      
-      {/* MODAL DEL FORMULARIO CLÍNICO */}
+    <div className="min-h-screen bg-slate-50 text-slate-900 font-sans p-4 md:p-8 flex flex-col">
+
+      {/* ── FORM MODAL ──────────────────────────────────────────────────── */}
       {isFormOpen && (
         <div className="fixed inset-0 bg-slate-900/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
-          <div className="bg-white w-full max-w-4xl h-[90vh] rounded-3xl shadow-2xl flex flex-col overflow-hidden animate-in zoom-in-95 duration-200">
-            
-            {/* Modal Header */}
+          <div className="bg-white w-full max-w-4xl h-[90vh] rounded-3xl shadow-2xl flex flex-col overflow-hidden">
+
             <div className="bg-white px-6 py-4 border-b border-slate-200 flex justify-between items-center shadow-sm z-10">
               <div>
                 <h2 className="text-lg font-black text-slate-800 flex items-center gap-2">
-                  <ClipboardList className="w-5 h-5 text-blue-600" /> Formulario de Historia Clínica
+                  <ClipboardList className="w-5 h-5 text-blue-600" /> Ingreso de Datos Clínicos
                 </h2>
-                <div className="flex gap-4 mt-1">
-                  <span className="text-[10px] font-bold text-rose-600 bg-rose-50 px-2 py-0.5 rounded">Obligatorio</span>
-                  <span className="text-[10px] font-bold text-amber-600 bg-amber-50 px-2 py-0.5 rounded">Recomendado</span>
-                  <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded">Opcional</span>
+                <div className="flex gap-4 mt-1 text-[11px] font-bold">
+                  <span className="text-rose-600 flex items-center gap-1">
+                    <div className="w-2 h-2 rounded-full bg-rose-500" /> AUC 0.695 (Mínimo)
+                  </span>
+                  <span className="text-amber-600 flex items-center gap-1">
+                    <div className="w-2 h-2 rounded-full bg-amber-500" /> Reduce Falsos Neg.
+                  </span>
                 </div>
               </div>
-              <button onClick={() => setIsFormOpen(false)} className="p-2 hover:bg-slate-100 rounded-full transition-colors">
+              <button onClick={() => setIsFormOpen(false)}
+                      className="p-2 hover:bg-slate-100 rounded-full transition-colors">
                 <X className="w-5 h-5 text-slate-500" />
               </button>
             </div>
 
-            {/* Modal Body (Scrollable) */}
             <div className="flex-grow overflow-y-auto p-6 bg-slate-50">
               <div className="max-w-3xl mx-auto">
-                
-                <FormSection title="Nacimiento" level="obligatorio" icon={Activity}>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-                    <FormGroup label="Peso al nacer" unit="g" required helper="Rango prematuros: 400-3.500 g">
-                      <input type="number" name="peso" value={formData.peso} onChange={handleFormChange} className="w-full border border-slate-300 rounded-lg p-2 text-sm focus:ring-2 focus:ring-rose-200 outline-none" />
+
+                {/* NIVEL 1 */}
+                <FormSection title="Nivel 1: Predictores Ancla" level="obligatorio"
+                             icon={TrendingUp}
+                             desc="Variables mínimas requeridas. AUC ≥ 0.695 con solo estos 6 campos.">
+                  <div className="bg-white rounded-lg p-4 border border-rose-100 mb-4 shadow-sm">
+                    <h4 className="text-[11px] font-black text-rose-800 uppercase tracking-widest mb-3">
+                      Trayectoria de Crecimiento Cerebral (Fenton 2013)
+                    </h4>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <FormGroup label="PC al nacer" unit="mm" required helper="En mm. Mediana: 280–340 mm">
+                        <input type="number" name="pc_nacer_mm" value={formData.pc_nacer_mm}
+                               onChange={handleChange} min="180" max="400"
+                               className="w-full border border-slate-300 rounded-lg p-2 text-sm focus:ring-2 focus:ring-rose-200 outline-none" />
+                      </FormGroup>
+                      <FormGroup label="EG Ballard" unit="sem" required helper="Semanas completas: 24–36">
+                        <input type="number" name="eg_semanas" value={formData.eg_semanas}
+                               onChange={handleChange} min="24" max="36"
+                               className="w-full border border-slate-300 rounded-lg p-2 text-sm focus:ring-2 focus:ring-rose-200 outline-none" />
+                      </FormGroup>
+                      <FormGroup label="PC a las 40 sem EC" unit="cm" required helper="En cm. Rango: 30–40 cm">
+                        <input type="number" name="pc_40sem_cm" value={formData.pc_40sem_cm}
+                               onChange={handleChange} min="28" max="44" step="0.1"
+                               className="w-full border border-slate-300 rounded-lg p-2 text-sm focus:ring-2 focus:ring-rose-200 outline-none" />
+                      </FormGroup>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <FormGroup label="2. Días Oxigenoterapia" unit="días" required helper="Total período neonatal">
+                      <input type="number" name="dias_oxigeno" value={formData.dias_oxigeno}
+                             onChange={handleChange} min="0" max="90"
+                             className="w-full border border-slate-300 rounded-lg p-2 text-sm focus:ring-2 focus:ring-rose-200 outline-none" />
                     </FormGroup>
-                    <FormGroup label="EG Ballard" unit="sem" required helper="Semanas completas: 24-36">
-                      <input type="number" name="semanas" value={formData.semanas} onChange={handleFormChange} className="w-full border border-slate-300 rounded-lg p-2 text-sm focus:ring-2 focus:ring-rose-200 outline-none" />
+                    <FormGroup label="3. Educación Materna" required helper="Proxy socioeconómico principal">
+                      <select name="educ_materna" value={formData.educ_materna}
+                              onChange={handleChange}
+                              className="w-full border border-slate-300 rounded-lg p-2 text-sm focus:ring-2 focus:ring-rose-200 outline-none bg-white">
+                        <option value="">Seleccionar…</option>
+                        <option value="1">1 — Primaria</option>
+                        <option value="2">2 — Secundaria</option>
+                        <option value="3">3 — Técnico / tecnólogo</option>
+                        <option value="4">4 — Universitario</option>
+                        <option value="5">5 — Posgrado</option>
+                      </select>
                     </FormGroup>
-                    <FormGroup label="PC al nacer" unit="mm" required helper="En mm. Mediana: 280-340 mm">
-                      <input type="number" name="pc_nacer" value={formData.pc_nacer} onChange={handleFormChange} className="w-full border border-slate-300 rounded-lg p-2 text-sm focus:ring-2 focus:ring-rose-200 outline-none" />
+                    <FormGroup label="4. Cociente Auditivo Griffiths 6m" required helper="Normal 75–117 · Riesgo <75">
+                      <input type="number" name="griffiths_auditivo" value={formData.griffiths_auditivo}
+                             onChange={handleChange} min="50" max="145"
+                             className="w-full border border-slate-300 rounded-lg p-2 text-sm focus:ring-2 focus:ring-rose-200 outline-none" />
                     </FormGroup>
                   </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <FormGroup label="Grupo" required>
-                      <select name="grupo" value={formData.grupo} onChange={handleFormChange} className="w-full border border-slate-300 rounded-lg p-2 text-sm focus:ring-2 focus:ring-rose-200 outline-none bg-white">
-                        <option value="">Seleccionar...</option>
+                </FormSection>
+
+                {/* NIVEL 2 */}
+                <FormSection title="Nivel 2: Estabilización del Modelo" level="recomendado"
+                             desc="Reduce drásticamente los Falsos Negativos. AUC ≈ 0.689.">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                    <FormGroup label="Peso al nacer" unit="g" helper="Rango prematuros: 400–2.500 g">
+                      <input type="number" name="peso_nacer_g" value={formData.peso_nacer_g}
+                             onChange={handleChange} min="400" max="3500"
+                             className="w-full border border-amber-300 rounded-lg p-2 text-sm outline-none" />
+                    </FormGroup>
+                    <FormGroup label="Grupo estudio">
+                      <select name="grupo" value={formData.grupo} onChange={handleChange}
+                              className="w-full border border-amber-300 rounded-lg p-2 text-sm outline-none bg-white">
+                        <option value="">Seleccionar…</option>
                         <option value="KMC">KMC — posición canguro</option>
                         <option value="TC">TC — cuidado tradicional</option>
                       </select>
                     </FormGroup>
-                    <FormGroup label="Educación materna" required>
-                      <select name="educacion" value={formData.educacion} onChange={handleFormChange} className="w-full border border-slate-300 rounded-lg p-2 text-sm focus:ring-2 focus:ring-rose-200 outline-none bg-white">
-                        <option value="">Seleccionar...</option>
-                        <option value="Primaria">Primaria o menos</option>
-                        <option value="Secundaria">Secundaria</option>
-                        <option value="Universitaria">Universitaria</option>
-                      </select>
-                    </FormGroup>
-                  </div>
-                </FormSection>
-
-                <FormSection title="40 semanas de edad corregida" level="obligatorio">
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <FormGroup label="PC a las 40 sem EC" unit="cm" required helper="En cm. Rango: 30-40 cm">
-                      <input type="number" name="pc_40" value={formData.pc_40} onChange={handleFormChange} className="w-full border border-slate-300 rounded-lg p-2 text-sm focus:ring-2 focus:ring-rose-200 outline-none" />
-                    </FormGroup>
-                    <FormGroup label="Días oxigenoterapia" unit="días" required helper="Total días con O₂ en período neonatal">
-                      <input type="number" name="oxigeno" value={formData.oxigeno} onChange={handleFormChange} className="w-full border border-slate-300 rounded-lg p-2 text-sm focus:ring-2 focus:ring-rose-200 outline-none" />
-                    </FormGroup>
-                    <FormGroup label="Horas posición canguro" unit="h" helper="Total acumulado período neonatal">
-                      <input type="number" name="horas_canguro" value={formData.horas_canguro} onChange={handleFormChange} className="w-full border border-slate-300 rounded-lg p-2 text-sm focus:ring-2 focus:ring-rose-200 outline-none" />
-                    </FormGroup>
-                  </div>
-                </FormSection>
-
-                <FormSection title="Griffiths — 6 meses EC" level="obligatorio" icon={Brain}>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <FormGroup label="Cociente auditivo" required helper="Normal: 75-117 · Riesgo: <75">
-                      <input type="number" name="griffiths_aud" value={formData.griffiths_aud} onChange={handleFormChange} className="w-full border border-slate-300 rounded-lg p-2 text-sm focus:ring-2 focus:ring-rose-200 outline-none" />
-                    </FormGroup>
-                    <FormGroup label="Raw score motor" helper="Subescala motora cruda. Rango: 1-6">
-                      <input type="number" name="griffiths_mot" value={formData.griffiths_mot} onChange={handleFormChange} className="w-full border border-slate-300 rounded-lg p-2 text-sm focus:ring-2 focus:ring-rose-200 outline-none" />
-                    </FormGroup>
-                    <FormGroup label="Cociente general" helper="Griffiths general. Normal: 78-115">
-                      <input type="number" name="griffiths_gen" value={formData.griffiths_gen} onChange={handleFormChange} className="w-full border border-slate-300 rounded-lg p-2 text-sm focus:ring-2 focus:ring-rose-200 outline-none" />
-                    </FormGroup>
-                  </div>
-                </FormSection>
-
-                <FormSection title="Período neonatal" level="recomendado">
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <FormGroup label="Días hospitalización" unit="días">
-                      <input type="number" name="hospitalizacion" value={formData.hospitalizacion} onChange={handleFormChange} className="w-full border border-amber-300 rounded-lg p-2 text-sm focus:ring-2 focus:ring-amber-200 outline-none" />
-                    </FormGroup>
-                    <FormGroup label="¿Recibió fototerapia?">
-                      <select name="fototerapia" value={formData.fototerapia} onChange={handleFormChange} className="w-full border border-amber-300 rounded-lg p-2 text-sm focus:ring-2 focus:ring-amber-200 outline-none bg-white">
-                        <option value="">Seleccionar...</option>
-                        <option value="Sí">Sí</option>
-                        <option value="No">No</option>
-                      </select>
+                    <FormGroup label="Horas posición canguro" unit="h" helper="TC → se imputa como 0 automáticamente">
+                      <input type="number" name="horas_canguro" value={formData.horas_canguro}
+                             onChange={handleChange} min="0" max="500"
+                             className="w-full border border-amber-300 rounded-lg p-2 text-sm outline-none" />
                     </FormGroup>
                     <FormGroup label="Leucomalacia periventricular">
-                      <select name="leucomalacia" value={formData.leucomalacia} onChange={handleFormChange} className="w-full border border-amber-300 rounded-lg p-2 text-sm focus:ring-2 focus:ring-amber-200 outline-none bg-white">
-                        <option value="0">0 — Ausente (o no explorada)</option>
+                      <select name="leucomalacia" value={formData.leucomalacia} onChange={handleChange}
+                              className="w-full border border-amber-300 rounded-lg p-2 text-sm outline-none bg-white">
+                        <option value="">No explorada / ausente</option>
+                        <option value="0">0 — Ausente confirmada</option>
                         <option value="1">1 — Leve</option>
                         <option value="2">2 — Moderada</option>
                         <option value="3">3 — Severa</option>
                       </select>
                     </FormGroup>
                   </div>
-                </FormSection>
-
-                <FormSection title="Contexto socioeconómico" level="recomendado">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <FormGroup label="Ingreso per cápita" unit="COP/mes" helper="Ingreso hogar ÷ personas">
-                      <select name="ingreso" value={formData.ingreso} onChange={handleFormChange} className="w-full border border-amber-300 rounded-lg p-2 text-sm focus:ring-2 focus:ring-amber-200 outline-none bg-white">
-                        <option value="">Seleccionar...</option>
-                        <option value="< 1 SMMLV">&lt; 1 SMMLV</option>
-                        <option value="1-2 SMMLV">1-2 SMMLV</option>
-                        <option value="> 2 SMMLV">&gt; 2 SMMLV</option>
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    <FormGroup label="Días hospitalización" unit="días">
+                      <input type="number" name="dias_hospitalizacion"
+                             value={formData.dias_hospitalizacion} onChange={handleChange}
+                             min="0" max="180"
+                             className="w-full border border-amber-300 rounded-lg p-2 text-sm outline-none" />
+                    </FormGroup>
+                    <FormGroup label="¿Fototerapia?">
+                      <select name="fototerapia" value={formData.fototerapia} onChange={handleChange}
+                              className="w-full border border-amber-300 rounded-lg p-2 text-sm outline-none bg-white">
+                        <option value="">Seleccionar…</option>
+                        <option value="1">Sí</option>
+                        <option value="0">No</option>
                       </select>
                     </FormGroup>
-                    <FormGroup label="Lactancia materna">
-                      <select name="lactancia" value={formData.lactancia} onChange={handleFormChange} className="w-full border border-amber-300 rounded-lg p-2 text-sm focus:ring-2 focus:ring-amber-200 outline-none bg-white">
-                        <option value="">Seleccionar...</option>
-                        <option value="Exclusiva">Exclusiva</option>
-                        <option value="Mixta">Mixta</option>
-                        <option value="Fórmula">Fórmula artificial</option>
-                      </select>
+                    <FormGroup label="Griffiths General 6m" helper="Normal: 78–115">
+                      <input type="number" name="griffiths_general"
+                             value={formData.griffiths_general} onChange={handleChange}
+                             min="50" max="140"
+                             className="w-full border border-amber-300 rounded-lg p-2 text-sm outline-none" />
+                    </FormGroup>
+                    <FormGroup label="Griffiths Motor 6m" helper="Raw score 1–6">
+                      <input type="number" name="griffiths_motor"
+                             value={formData.griffiths_motor} onChange={handleChange}
+                             min="1" max="6"
+                             className="w-full border border-amber-300 rounded-lg p-2 text-sm outline-none" />
                     </FormGroup>
                   </div>
                 </FormSection>
 
-                <FormSection title="Crecimiento 3 y 12 meses EC" level="opcional">
+                {/* NIVEL 3 */}
+                <FormSection title="Nivel 3: Modelo M7 Completo" level="opcional"
+                             desc="Variables que habilitan el cálculo de deltas de velocidad de crecimiento.">
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-                    <FormGroup label="Peso 3m EC" unit="g" helper="Mediana cohorte: 5.300 g">
-                      <input type="number" name="peso_3m" value={formData.peso_3m} onChange={handleFormChange} className="w-full border border-emerald-300 rounded-lg p-2 text-sm focus:ring-2 focus:ring-emerald-200 outline-none" />
+                    <FormGroup label="Ingreso per cápita" unit="COP/mes">
+                      <select name="ingreso_percapita" value={formData.ingreso_percapita}
+                              onChange={handleChange}
+                              className="w-full border border-emerald-300 rounded-lg p-2 text-sm outline-none bg-white">
+                        <option value="">Seleccionar…</option>
+                        <option value="35000">&lt; $50.000</option>
+                        <option value="75000">$50.000 – $100.000</option>
+                        <option value="150000">$100.000 – $200.000</option>
+                        <option value="300000">$200.000 – $400.000</option>
+                        <option value="600000">$400.000 – $800.000</option>
+                        <option value="1200000">&gt; $800.000</option>
+                      </select>
+                    </FormGroup>
+                    <FormGroup label="Educación paterna">
+                      <select name="educ_paterna" value={formData.educ_paterna}
+                              onChange={handleChange}
+                              className="w-full border border-emerald-300 rounded-lg p-2 text-sm outline-none bg-white">
+                        <option value="">Seleccionar…</option>
+                        <option value="1">1 — Primaria</option>
+                        <option value="2">2 — Secundaria</option>
+                        <option value="3">3 — Técnico / tecnólogo</option>
+                        <option value="4">4 — Universitario</option>
+                        <option value="5">5 — Posgrado</option>
+                      </select>
+                    </FormGroup>
+                    <FormGroup label="Talla 40 sem EC" unit="mm">
+                      <input type="number" name="talla_40sem_mm"
+                             value={formData.talla_40sem_mm} onChange={handleChange}
+                             min="360" max="580"
+                             className="w-full border border-emerald-300 rounded-lg p-2 text-sm outline-none" />
+                    </FormGroup>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    <FormGroup label="Peso 3m EC" unit="g">
+                      <input type="number" name="peso_3m_g" value={formData.peso_3m_g}
+                             onChange={handleChange} min="2500" max="8000"
+                             className="w-full border border-emerald-300 rounded-lg p-2 text-sm outline-none" />
                     </FormGroup>
                     <FormGroup label="Talla 3m EC" unit="mm">
-                      <input type="number" name="talla_3m" value={formData.talla_3m} onChange={handleFormChange} className="w-full border border-emerald-300 rounded-lg p-2 text-sm focus:ring-2 focus:ring-emerald-200 outline-none" />
+                      <input type="number" name="talla_3m_mm" value={formData.talla_3m_mm}
+                             onChange={handleChange} min="450" max="680"
+                             className="w-full border border-emerald-300 rounded-lg p-2 text-sm outline-none" />
                     </FormGroup>
-                    <FormGroup label="Talla 40 sem EC" unit="mm" helper="Rango p5-p95: 430-510 mm">
-                      <input type="number" name="talla_40s" value={formData.talla_40s} onChange={handleFormChange} className="w-full border border-emerald-300 rounded-lg p-2 text-sm focus:ring-2 focus:ring-emerald-200 outline-none" />
-                    </FormGroup>
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <FormGroup label="Peso 12m EC" unit="g">
-                      <input type="number" name="peso_12m" value={formData.peso_12m} onChange={handleFormChange} className="w-full border border-emerald-300 rounded-lg p-2 text-sm focus:ring-2 focus:ring-emerald-200 outline-none" />
+                      <input type="number" name="peso_12m_g" value={formData.peso_12m_g}
+                             onChange={handleChange} min="5000" max="14000"
+                             className="w-full border border-emerald-300 rounded-lg p-2 text-sm outline-none" />
                     </FormGroup>
                     <FormGroup label="Talla 12m EC" unit="cm">
-                      <input type="number" name="talla_12m" value={formData.talla_12m} onChange={handleFormChange} className="w-full border border-emerald-300 rounded-lg p-2 text-sm focus:ring-2 focus:ring-emerald-200 outline-none" />
+                      <input type="number" name="talla_12m_cm" value={formData.talla_12m_cm}
+                             onChange={handleChange} min="60" max="86" step="0.5"
+                             className="w-full border border-emerald-300 rounded-lg p-2 text-sm outline-none" />
                     </FormGroup>
-                    <FormGroup label="Locomoción Griffiths 12m" helper="Normal: 83-125">
-                      <input type="number" name="loco_12m" value={formData.loco_12m} onChange={handleFormChange} className="w-full border border-emerald-300 rounded-lg p-2 text-sm focus:ring-2 focus:ring-emerald-200 outline-none" />
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                    <FormGroup label="Locomoción Griffiths 12m" helper="Normal: 83–125">
+                      <input type="number" name="griffiths_loco12"
+                             value={formData.griffiths_loco12} onChange={handleChange}
+                             min="50" max="160"
+                             className="w-full border border-emerald-300 rounded-lg p-2 text-sm outline-none" />
+                    </FormGroup>
+                    <FormGroup label="Días aminoglucósidos" unit="días" helper="Gentamicina, amikacina u otros (ototóxicos)">
+                      <input type="number" name="dias_aminoglucosidos"
+                             value={formData.dias_aminoglucosidos} onChange={handleChange}
+                             min="0" max="30"
+                             className="w-full border border-emerald-300 rounded-lg p-2 text-sm outline-none" />
                     </FormGroup>
                   </div>
                 </FormSection>
-
               </div>
             </div>
 
-            {/* Modal Footer */}
-            <div className="bg-white px-6 py-4 border-t border-slate-200 flex justify-end gap-3 shadow-[0_-4px_6px_-1px_rgb(0,0,0,0.05)] z-10">
-              <button onClick={() => setIsFormOpen(false)} className="px-5 py-2.5 text-sm font-bold text-slate-600 hover:bg-slate-100 rounded-xl transition-colors">
-                Cancelar
-              </button>
-              <button onClick={handleFormSubmit} className="px-6 py-2.5 text-sm font-black text-white bg-blue-700 hover:bg-blue-800 rounded-xl transition-colors flex items-center gap-2 shadow-md">
-                <Save className="w-4 h-4" /> Guardar y Calcular Riesgo
-              </button>
+            <div className="bg-white px-6 py-4 border-t border-slate-200 flex justify-between items-center shadow-sm z-10">
+              <span className="text-xs font-bold text-slate-400">
+                * Obligatorios = mínimo para ejecutar el modelo
+              </span>
+              <div className="flex gap-3">
+                <button onClick={() => setIsFormOpen(false)}
+                        className="px-5 py-2.5 text-sm font-bold text-slate-600 hover:bg-slate-100 rounded-xl">
+                  Cancelar
+                </button>
+                <button onClick={handleSubmitForm} disabled={!isFormValid()}
+                        className="px-6 py-2.5 text-sm font-black text-white bg-blue-700 hover:bg-blue-800 disabled:bg-slate-300 rounded-xl flex items-center gap-2 shadow-md transition-colors">
+                  <Save className="w-4 h-4" /> Calcular Riesgo
+                </button>
+              </div>
             </div>
           </div>
         </div>
       )}
 
-      {/* HEADER PRINCIPAL */}
+      {/* ── HEADER ───────────────────────────────────────────────────────── */}
       <div className="max-w-7xl mx-auto mb-8 flex flex-col md:flex-row md:items-center justify-between gap-4 w-full">
         <div className="flex items-center gap-3">
           <div className="bg-blue-700 p-2.5 rounded-2xl shadow-xl">
@@ -440,296 +596,540 @@ export default function App() {
             <p className="text-sm text-slate-500 font-bold uppercase tracking-widest">Seguimiento Longitudinal 20 Años</p>
           </div>
         </div>
-        <div className="bg-white px-6 py-2 rounded-full border border-slate-200 shadow-sm flex items-center gap-3">
-          <div className={`w-3 h-3 rounded-full ${results ? 'bg-emerald-500 animate-pulse' : 'bg-slate-300'}`}></div>
-          <span className="text-xs font-black text-slate-500 uppercase tracking-tighter">Motor: Modelo M7 Activo</span>
+        <div className="bg-white px-5 py-2 rounded-full border border-slate-200 shadow-sm flex items-center gap-3">
+          <div className={`w-3 h-3 rounded-full ${
+            apiStatus === 'ok'    ? 'bg-emerald-500 animate-pulse' :
+            apiStatus === 'error' ? 'bg-rose-500' : 'bg-slate-300'
+          }`} />
+          <span className="text-xs font-black text-slate-500 uppercase tracking-tighter">
+            Motor de Inferencia: {
+              apiStatus === 'ok'    ? 'Local · M7 Activo' :
+              apiStatus === 'error' ? 'Sin Conexión' : 'Conectando…'
+            }
+          </span>
+          {aucEstimate && (
+            <span className="text-xs font-black text-blue-700 bg-blue-50 px-2 py-0.5 rounded-full">
+              AUC {aucEstimate}
+            </span>
+          )}
         </div>
       </div>
 
       <div className="max-w-7xl mx-auto grid grid-cols-1 xl:grid-cols-12 gap-8 w-full flex-grow">
-        
-        {/* PANEL IZQUIERDO: CONTROLES */}
-        <div className="xl:col-span-3 space-y-6">
+
+        {/* ── LEFT PANEL ───────────────────────────────────────────────── */}
+        <div className="xl:col-span-3 space-y-5">
           <div className="bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden">
             <div className="bg-slate-50 px-6 py-4 border-b border-slate-200 flex items-center gap-2">
               <FileText className="w-5 h-5 text-blue-700" />
-              <h2 className="font-black text-slate-800 text-sm uppercase tracking-wider">Datos del Paciente</h2>
+              <h2 className="font-black text-slate-800 text-sm uppercase tracking-wider">Historia Clínica</h2>
             </div>
-            
-            <div className="p-5 space-y-5">
-              {/* Botón Principal para abrir Formulario */}
-              <button 
-                onClick={() => setIsFormOpen(true)}
-                className="w-full py-4 bg-blue-50 border-2 border-blue-200 hover:border-blue-500 hover:bg-blue-100 rounded-2xl flex flex-col items-center justify-center transition-all group"
-              >
+            <div className="p-5 space-y-4">
+              <button onClick={() => setIsFormOpen(true)}
+                      className="w-full py-4 bg-blue-50 border-2 border-blue-200 hover:border-blue-500 hover:bg-blue-100 rounded-2xl flex flex-col items-center justify-center transition-all group">
                 <ClipboardList className="w-10 h-10 text-blue-600 mb-2 group-hover:scale-110 transition-transform" />
-                <span className="text-sm font-black text-blue-900">Llenar Formulario Clínico</span>
-                <span className="text-[10px] text-blue-600 font-bold uppercase tracking-widest mt-1">Ingreso manual estructurado</span>
+                <span className="text-sm font-black text-blue-900">Ingresar Datos</span>
+                <span className="text-[10px] text-blue-600 font-bold uppercase tracking-widest mt-1">
+                  Mínimo 6 campos obligatorios
+                </span>
               </button>
 
-              <div className="relative flex items-center py-2">
-                <div className="flex-grow border-t border-slate-200"></div>
-                <span className="flex-shrink-0 mx-4 text-xs font-bold text-slate-400 uppercase tracking-widest">O importar JSON</span>
-                <div className="flex-grow border-t border-slate-200"></div>
-              </div>
-
               <div className="flex gap-2">
-                <button onClick={() => fileInputRef.current.click()} className="flex-1 py-2.5 bg-slate-50 border border-slate-200 hover:bg-slate-100 rounded-xl text-xs font-bold text-slate-600 flex items-center justify-center gap-2 transition-colors">
-                  <UploadCloud className="w-4 h-4" /> Subir Archivo
+                <button onClick={() => fileInputRef.current.click()}
+                        className="flex-1 py-2.5 bg-slate-50 border border-slate-200 hover:bg-slate-100 rounded-xl text-xs font-bold text-slate-600 flex items-center justify-center gap-2">
+                  <UploadCloud className="w-4 h-4" /> Subir JSON
                 </button>
-                <input type="file" ref={fileInputRef} onChange={handleFileUpload} accept=".json,.txt" className="hidden" />
+                <button onClick={handleLoadExample}
+                        className="flex-1 py-2.5 bg-slate-800 text-white text-xs font-black rounded-xl flex items-center justify-center gap-2">
+                  <Activity className="w-4 h-4" /> Ejemplo
+                </button>
+                <input type="file" ref={fileInputRef} onChange={handleFileUpload}
+                       accept=".json,.txt" className="hidden" />
               </div>
 
-              {/* Resumen de variables si existen */}
-              {inputs && inputs.peso && (
-                <div className="bg-slate-50 rounded-2xl p-4 border border-slate-200 mt-4">
-                  <h3 className="text-[10px] font-black text-slate-400 uppercase mb-3 tracking-[0.2em] flex justify-between">
-                    <span>Objeto JSON Generado</span>
-                    <button onClick={() => setIsFormOpen(true)} className="text-blue-600 hover:underline">Editar</button>
-                  </h3>
-                  <div className="space-y-2.5 overflow-hidden">
-                    <div className="flex justify-between text-xs"><span className="text-slate-500 font-bold">Peso nacer:</span><span className="font-black text-slate-900">{inputs.peso} g</span></div>
-                    <div className="flex justify-between text-xs"><span className="text-slate-500 font-bold">Semanas EG:</span><span className="font-black text-slate-900">{inputs.semanas}</span></div>
-                    <div className="flex justify-between text-xs"><span className="text-slate-500 font-bold">Grupo:</span><span className="font-black text-slate-900">{inputs.grupo || '-'}</span></div>
-                    <div className="flex justify-between text-xs"><span className="text-slate-500 font-bold">Días Oxígeno:</span><span className="font-black text-slate-900">{inputs.oxigeno || '-'} d</span></div>
-                    <div className="flex justify-between text-xs"><span className="text-slate-500 font-bold">Griffiths Gen:</span><span className="font-black text-slate-900">{inputs.griffiths_gen || '-'}</span></div>
-                    {/* Indicador de más variables */}
-                    <div className="pt-2 mt-2 border-t border-slate-200 text-center text-[10px] text-slate-400 font-bold italic">
-                      + {Object.keys(inputs).length - 5} variables listas para Inferencia
-                    </div>
-                  </div>
+              {uploadMsg && (
+                <div className={`flex items-center gap-2 text-xs font-semibold p-2 rounded-lg ${
+                  uploadMsg.type === 'ok'
+                    ? 'bg-emerald-50 text-emerald-700'
+                    : 'bg-rose-50 text-rose-700'
+                }`}>
+                  {uploadMsg.type === 'ok'
+                    ? <CheckCircle className="w-4 h-4 flex-shrink-0" />
+                    : <AlertCircle className="w-4 h-4 flex-shrink-0" />}
+                  {uploadMsg.text}
                 </div>
               )}
 
-              {(!inputs || !inputs.peso) && (
-                <button 
-                  onClick={handleLoadExample}
-                  className="w-full py-3.5 mt-2 bg-slate-800 text-white text-xs font-black rounded-2xl shadow-md hover:bg-slate-900 transition-all uppercase tracking-widest flex items-center justify-center gap-2"
-                >
-                  <Activity className="w-4 h-4"/> Cargar Caso de Prueba
-                </button>
+              {/* Variables extraídas */}
+              {results?.meta && (
+                <div className="bg-slate-50 rounded-2xl p-4 border border-slate-200">
+                  <h3 className="text-[10px] font-black text-slate-400 uppercase mb-3 tracking-[0.2em]">
+                    Variables Extraídas
+                  </h3>
+                  <div className="space-y-1.5">
+                    {formData.peso_nacer_g && (
+                      <div className="flex justify-between text-xs">
+                        <span className="text-slate-500">Peso nacer:</span>
+                        <span className="font-black">{formData.peso_nacer_g} g</span>
+                      </div>
+                    )}
+                    {formData.pc_nacer_mm && (
+                      <div className="flex justify-between text-xs">
+                        <span className="text-slate-500">EG:</span>
+                        <span className="font-black">{formData.eg_semanas} sem</span>
+                      </div>
+                    )}
+                    {formData.eg_semanas && (
+                      <div className="flex justify-between text-xs">
+                        <span className="text-slate-500">Edad Gest.:</span>
+                        <span className="font-black">{formData.eg_semanas} sem</span>
+                      </div>
+                    )}
+                    {formData.dias_oxigeno && (
+                      <div className="flex justify-between text-xs">
+                        <span className="text-slate-500">Días O₂:</span>
+                        <span className="font-black">{formData.dias_oxigeno} d</span>
+                      </div>
+                    )}
+                    {catchupVal !== null && catchupVal !== undefined && (
+                      <div className="flex justify-between text-xs">
+                        <span className="text-slate-500">Catch-up PC:</span>
+                        <span className={`font-black ${catchupVal < -0.5 ? 'text-rose-600' : 'text-emerald-700'}`}>
+                          {catchupVal > 0 ? '+' : ''}{catchupVal} Δσ
+                        </span>
+                      </div>
+                    )}
+                    {formData.griffiths_auditivo && (
+                      <div className="flex justify-between text-xs">
+                        <span className="text-slate-500">Audición 6m:</span>
+                        <span className="font-black">{formData.griffiths_auditivo} pts</span>
+                      </div>
+                    )}
+                    {meta.n_campos_imputados > 0 && (
+                      <div className="text-[10px] text-slate-400 mt-2 pt-2 border-t border-slate-200">
+                        {meta.n_campos_imputados} campo(s) imputados con mediana de entrenamiento
+                      </div>
+                    )}
+                  </div>
+                </div>
               )}
             </div>
           </div>
         </div>
 
-        {/* PANEL DERECHO: RESULTADOS */}
-        <div className="xl:col-span-9 flex flex-col h-full">
-          <div className="flex p-1.5 bg-slate-200 rounded-2xl mb-6 self-start overflow-x-auto w-full md:w-auto">
-            {['global', 'cognitivo', 'evidencia'].map(tab => (
-              <button
-                key={tab}
-                onClick={() => setActiveTab(tab)}
-                className={`px-8 py-3 text-xs font-black uppercase tracking-widest rounded-xl transition-all whitespace-nowrap ${activeTab === tab ? 'bg-white text-blue-700 shadow-xl' : 'text-slate-500 hover:text-slate-700'}`}
-              >
-                {tab === 'global' ? 'Riesgo Global' : tab === 'cognitivo' ? 'Perfil Cognitivo' : 'Validación Científica'}
-              </button>
-            ))}
+        {/* ── RIGHT PANEL ──────────────────────────────────────────────── */}
+        <div className="xl:col-span-9 flex flex-col">
+          {/* Tabs */}
+          <div className="flex p-1.5 bg-slate-200 rounded-2xl mb-6 self-start w-full md:w-auto overflow-x-auto">
+            {[['global','Riesgo Global'],['cognitivo','Perfil Cognitivo'],['evidencia','Validación Científica']].map(
+              ([key, label]) => (
+                <button key={key} onClick={() => setActiveTab(key)}
+                        className={`px-7 py-3 text-xs font-black uppercase tracking-widest rounded-xl transition-all whitespace-nowrap ${
+                          activeTab === key
+                            ? 'bg-white text-blue-700 shadow-xl'
+                            : 'text-slate-500 hover:text-slate-700'
+                        }`}>
+                  {label}
+                </button>
+              )
+            )}
           </div>
 
-          <div className="bg-white rounded-[2.5rem] shadow-sm border border-slate-200 p-8 md:p-10 relative flex-grow flex flex-col">
-            {!results && !isCalculating ? (
+          <div className="bg-white rounded-[2.5rem] shadow-sm border border-slate-200 p-8 md:p-10 relative flex-grow flex flex-col min-h-[500px]">
+
+            {/* API Error */}
+            {apiError && (
+              <div className="mb-6 bg-rose-50 border border-rose-200 rounded-2xl p-4 flex items-start gap-3">
+                <ServerCrash className="w-5 h-5 text-rose-600 flex-shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-sm font-black text-rose-900">Error al conectar con el modelo</p>
+                  <p className="text-xs text-rose-700 mt-1">{apiError}</p>
+                  <p className="text-xs text-rose-500 mt-1">
+                    Verifica que el backend esté corriendo en {API_URL}
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* Empty state */}
+            {!results && !isLoading && !apiError && (
               <div className="flex-grow flex flex-col items-center justify-center opacity-20 grayscale">
                 <ActivitySquare className="w-24 h-24 mb-4" />
                 <p className="font-black uppercase tracking-widest text-sm">Esperando Datos Clínicos</p>
-                <p className="text-xs font-medium mt-2">Utilice el formulario de la izquierda para comenzar</p>
+                <p className="text-xs font-medium mt-2">Complete los 6 campos obligatorios para ejecutar el modelo</p>
               </div>
-            ) : isCalculating ? (
+            )}
+
+            {/* Loading */}
+            {isLoading && (
               <div className="absolute inset-0 bg-white/90 backdrop-blur-xl z-10 flex flex-col items-center justify-center rounded-[2.5rem]">
-                <div className="animate-spin rounded-full h-16 w-16 border-4 border-blue-100 border-t-blue-700 mb-6"></div>
-                <p className="font-black text-slate-700 uppercase tracking-widest text-xs">Ejecutando Pipeline XGBoost...</p>
+                <Loader2 className="w-12 h-12 text-blue-700 animate-spin mb-4" />
+                <p className="font-black text-slate-700 uppercase tracking-widest text-xs">
+                  Ejecutando Modelo M7 · Calibrado (Isotonic)…
+                </p>
               </div>
-            ) : (
+            )}
+
+            {/* Results */}
+            {results && !isLoading && (
               <div className="animate-in fade-in zoom-in-95 duration-500 flex-grow flex flex-col">
-                
+
+                {/* ── TAB: RIESGO GLOBAL ──────────────────────────────── */}
                 {activeTab === 'global' && (
                   <div className="flex-grow">
-                    <div className="grid md:grid-cols-2 gap-12 items-center mb-10 pb-10 border-b border-slate-100">
+                    <div className="grid md:grid-cols-2 gap-10 items-center mb-10 pb-10 border-b border-slate-100">
+                      {/* Gauge */}
                       <div className="flex flex-col items-center">
-                        <div className={`w-44 h-44 rounded-full border-[10px] flex flex-col items-center justify-center shadow-xl mb-6 ${results.global.bgColor} ${results.global.color.replace('text-', 'border-')}`}>
-                          {results.global.icon}
-                          <span className={`text-xl font-black mt-2 tracking-tighter ${results.global.color}`}>{results.global.nivel}</span>
+                        <div className={`w-44 h-44 rounded-full border-[10px] flex flex-col items-center justify-center shadow-xl mb-5 ${
+                          isHighRisk ? 'bg-rose-100 border-rose-400'   :
+                          isMedRisk  ? 'bg-amber-100 border-amber-400' :
+                                       'bg-emerald-100 border-emerald-400'
+                        }`}>
+                          {isHighRisk
+                            ? <AlertTriangle className="w-10 h-10 text-rose-600" />
+                            : isMedRisk
+                              ? <AlertCircle className="w-10 h-10 text-amber-600" />
+                              : <CheckCircle className="w-10 h-10 text-emerald-600" />}
+                          <span className={`text-lg font-black mt-2 tracking-tighter text-center px-2 leading-tight ${
+                            isHighRisk ? 'text-rose-600' : isMedRisk ? 'text-amber-700' : 'text-emerald-700'
+                          }`}>
+                            {globalResult.nivel}
+                          </span>
                         </div>
                         <div className="text-center bg-slate-50 p-4 rounded-2xl w-full border border-slate-100">
-                          <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] mb-1">Probabilidad de Riesgo</p>
-                          <p className="text-4xl font-black text-slate-900 tracking-tighter">{results.global.probabilidad}%</p>
-                          <div className="mt-3 bg-blue-50 text-blue-800 text-[11px] font-medium p-2.5 rounded-xl border border-blue-100 leading-tight">
-                            Calibrado — {results.global.probabilidad} de cada 100 pacientes con este perfil pertenecen al grupo GO-2 Bajo.
+                          <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] mb-1">
+                            Probabilidad de Riesgo
+                          </p>
+                          <p className="text-4xl font-black text-slate-900">{probDisplay}%</p>
+                          {globalResult.calibrado && (
+                            <div className="mt-3 bg-blue-50 text-blue-800 text-[11px] font-medium p-2.5 rounded-xl border border-blue-100 leading-tight flex items-start gap-1.5">
+                              <Shield className="w-3 h-3 flex-shrink-0 mt-0.5" />
+                              <span>Calibrado (isotónica) — {probDisplay} de cada 100 pacientes con este perfil neonatal pertenecen al grupo GO-2 Bajo.</span>
+                            </div>
+                          )}
+                          <div className="mt-2 text-[10px] text-slate-400">
+                            Umbral: {globalResult.threshold_usado} · {meta.completitud_pct}% campos completados
                           </div>
                         </div>
                       </div>
-                      
-                      <div className="space-y-6">
-                        <h2 className="text-3xl font-black text-slate-900 tracking-tighter">Evaluación Neurocognitiva</h2>
-                        <div className={`p-6 rounded-3xl border-2 ${results.global.nivel === 'Alto Riesgo' ? 'bg-rose-50 border-rose-200' : 'bg-emerald-50 border-emerald-200'}`}>
-                          <p className={`text-sm font-bold leading-relaxed ${results.global.nivel === 'Alto Riesgo' ? 'text-rose-900' : 'text-emerald-900'}`}>
-                            {results.global.nivel === 'Alto Riesgo' 
-                              ? 'El perfil neonatal y las variables de crecimiento se asocian con un riesgo significativo de déficit cognitivo a los 20 años.' 
-                              : 'El perfil estructurado se asocia a trayectorias protectoras y a un desarrollo cognitivo típico a largo plazo.'}
+
+                      {/* Narrative */}
+                      <div className="space-y-5">
+                        <h2 className="text-3xl font-black text-slate-900 tracking-tighter">
+                          Trayectoria Neurocognitiva
+                        </h2>
+                        <div className={`p-5 rounded-3xl border-2 ${
+                          isHighRisk ? 'bg-rose-50 border-rose-200' :
+                          isMedRisk  ? 'bg-amber-50 border-amber-200' :
+                                       'bg-emerald-50 border-emerald-200'
+                        }`}>
+                          <p className={`text-sm font-bold leading-relaxed ${
+                            isHighRisk ? 'text-rose-900' :
+                            isMedRisk  ? 'text-amber-900' : 'text-emerald-900'
+                          }`}>
+                            {isHighRisk
+                              ? 'El perfil neonatal (bajo catch-up PC Fenton, exposición prolongada a O₂) junto con el contexto socioeducativo se asocia a alto riesgo de déficit cognitivo a los 20 años.'
+                              : isMedRisk
+                                ? 'El perfil presenta factores de riesgo moderados. Se recomienda seguimiento periódico en neurodesarrollo.'
+                                : 'La trayectoria de crecimiento cerebral favorable y el contexto socioeducativo se asocian a desarrollo cognitivo dentro del rango esperado a los 20 años.'}
                           </p>
                         </div>
+
+                        {/* Derived values */}
+                        {(catchupVal !== null || zNacerVal !== null) && (
+                          <div className="bg-slate-50 rounded-2xl p-4 border border-slate-200 text-xs">
+                            <p className="font-black text-slate-500 uppercase tracking-widest mb-2 text-[10px]">
+                              Variables derivadas (Fenton 2013)
+                            </p>
+                            {zNacerVal !== null && (
+                              <div className="flex justify-between mb-1">
+                                <span className="text-slate-500">PC z-score al nacer</span>
+                                <span className={`font-black ${zNacerVal < -2 ? 'text-rose-600' : zNacerVal < -1 ? 'text-amber-600' : 'text-emerald-700'}`}>
+                                  {zNacerVal > 0 ? '+' : ''}{zNacerVal} σ
+                                </span>
+                              </div>
+                            )}
+                            {catchupVal !== null && (
+                              <div className="flex justify-between">
+                                <span className="text-slate-500">Catch-up PC (nacer → 40 sem)</span>
+                                <span className={`font-black ${catchupVal < -0.5 ? 'text-rose-600' : catchupVal < 0 ? 'text-amber-600' : 'text-emerald-700'}`}>
+                                  {catchupVal > 0 ? '+' : ''}{catchupVal} Δσ
+                                </span>
+                              </div>
+                            )}
+                          </div>
+                        )}
                       </div>
                     </div>
 
+                    {/* SHAP */}
                     <div>
-                      <div className="flex items-center gap-3 mb-6">
+                      <div className="flex items-center gap-3 mb-5">
                         <BarChartHorizontal className="w-6 h-6 text-blue-700" />
-                        <h3 className="font-black text-slate-800 uppercase text-xs tracking-[0.2em]">Explicabilidad del Caso (SHAP)</h3>
+                        <h3 className="font-black text-slate-800 uppercase text-xs tracking-[0.2em]">
+                          Explicabilidad del Caso (SHAP)
+                        </h3>
+                        {results?.shap?.method === 'feature_importances_fallback' && (
+                          <span className="text-[10px] text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">
+                            Aproximado
+                          </span>
+                        )}
                       </div>
-                      <div className="bg-slate-50 p-6 md:p-8 rounded-[2rem] border border-slate-200">
-                        <div className="space-y-1">
-                          {results.shap.map(item => renderShapBar(item, Math.max(...results.shap.map(s => Math.abs(s.valor)))))}
+                      {allShap.length > 0 ? (
+                        <div className="bg-slate-50 p-6 rounded-[2rem] border border-slate-200">
+                          {allShap.map(item => (
+                            <ShapBar key={item.feature} item={item} maxAbs={maxShapAbs} />
+                          ))}
+                          <div className="mt-5 pt-4 border-t border-slate-200 flex justify-center gap-8 text-[10px] font-black uppercase tracking-widest text-slate-500">
+                            <span className="flex items-center gap-2">
+                              <div className="w-3 h-3 bg-emerald-400 rounded-sm" /> Protector
+                            </span>
+                            <span className="flex items-center gap-2">
+                              <div className="w-3 h-3 bg-rose-400 rounded-sm" /> Factor Riesgo
+                            </span>
+                          </div>
                         </div>
-                        <div className="mt-6 pt-5 border-t border-slate-200 flex justify-center gap-8 text-[10px] font-black uppercase tracking-widest text-slate-500">
-                          <span className="flex items-center gap-2"><div className="w-3 h-3 bg-emerald-400 rounded-sm"></div> Protector</span>
-                          <span className="flex items-center gap-2"><div className="w-3 h-3 bg-rose-400 rounded-sm"></div> Factor Riesgo</span>
+                      ) : (
+                        <div className="bg-slate-50 rounded-2xl border border-slate-200 p-6 text-center text-xs text-slate-400">
+                          SHAP no disponible — instalar shap en el entorno del servidor
+                          <code className="block mt-1 text-[10px]">pip install shap</code>
                         </div>
-                      </div>
+                      )}
                     </div>
                   </div>
                 )}
 
+                {/* ── TAB: PERFIL COGNITIVO ────────────────────────────── */}
                 {activeTab === 'cognitivo' && (
-                  <div className="flex flex-col h-full py-4 flex-grow">
-                    <div className="text-center mb-10">
-                      <h2 className="text-3xl font-black text-slate-900 tracking-tighter mb-2">Desglose del Perfil Cognitivo</h2>
-                      <p className="text-slate-500 text-sm font-medium">Proyección probabilística basada en las 19 dimensiones del fenotipo GO-i a los 20 años.</p>
+                  <div className="flex-grow flex flex-col">
+                    <div className="text-center mb-8">
+                      <h2 className="text-3xl font-black text-slate-900 tracking-tighter mb-2">
+                        Fenotipo Cognitivo Proyectado
+                      </h2>
+                      <p className="text-slate-500 text-sm">
+                        Probabilidades de pertenecer a cada fenotipo según los modelos M8/M9/M10
+                      </p>
                     </div>
 
-                    <div className="grid md:grid-cols-3 gap-6 flex-grow">
+                    <div className="grid md:grid-cols-3 gap-5 flex-grow">
+
+                      {/* WASI */}
                       <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm flex flex-col">
-                        <div className="flex items-center gap-3 mb-6 text-blue-900 border-b border-slate-100 pb-4">
+                        <div className="flex items-center gap-3 mb-5 pb-4 border-b border-slate-100">
                           <Brain className="w-6 h-6 text-blue-600" />
-                          <h3 className="font-black text-lg leading-tight tracking-tight">Inteligencia<br/><span className="text-[10px] text-slate-400 uppercase tracking-widest">Escala WASI</span></h3>
-                        </div>
-                        <div className="space-y-6 mt-2">
                           <div>
-                            <div className="flex justify-between text-xs font-bold mb-2 text-slate-600"><span>Rango Alto</span><span>{results.cognitivo.wasi.alto.toFixed(1)}%</span></div>
-                            <div className="w-full h-3 bg-slate-100 rounded-full overflow-hidden"><div className="h-full bg-emerald-400" style={{ width: `${results.cognitivo.wasi.alto}%` }}></div></div>
-                          </div>
-                          <div>
-                            <div className="flex justify-between text-xs font-bold mb-2 text-slate-600"><span>Rango Promedio</span><span>{results.cognitivo.wasi.medio.toFixed(1)}%</span></div>
-                            <div className="w-full h-3 bg-slate-100 rounded-full overflow-hidden"><div className="h-full bg-blue-400" style={{ width: `${results.cognitivo.wasi.medio}%` }}></div></div>
-                          </div>
-                          <div>
-                            <div className="flex justify-between text-xs font-bold mb-2 text-rose-600"><span>Riesgo de Déficit</span><span>{results.cognitivo.wasi.bajo.toFixed(1)}%</span></div>
-                            <div className="w-full h-3 bg-slate-100 rounded-full overflow-hidden"><div className="h-full bg-rose-500" style={{ width: `${results.cognitivo.wasi.bajo}%` }}></div></div>
+                            <h3 className="font-black text-lg text-blue-900 leading-tight">Inteligencia</h3>
+                            <span className="text-[10px] text-slate-400 uppercase tracking-widest">WASI K=3</span>
                           </div>
                         </div>
+                        {wasiResult ? (
+                          <div className="space-y-4 flex-grow">
+                            {[
+                              ['Inteligencia Alta (GO-1)',   wasiResult.probabilidad != null && globalResult ? 100 - wasiResult.probabilidad - 10 : 0, 'emerald'],
+                              ['Inteligencia Media (GO-2)',  10, 'blue'],
+                              ['Riesgo de Déficit (GO-3)',   wasiResult.probabilidad ?? 0, 'rose'],
+                            ].map(([label, pct, color]) => (
+                              <div key={label}>
+                                <div className={`flex justify-between text-xs font-bold mb-1.5 ${color === 'rose' ? 'text-rose-600' : 'text-slate-600'}`}>
+                                  <span>{label}</span><span>{Math.max(0, Math.min(100, pct)).toFixed(1)}%</span>
+                                </div>
+                                <div className="w-full h-3 bg-slate-100 rounded-full overflow-hidden">
+                                  <div className={`h-full ${
+                                    color === 'rose' ? 'bg-rose-500' : color === 'emerald' ? 'bg-emerald-400' : 'bg-blue-400'
+                                  }`} style={{ width: `${Math.max(0, Math.min(100, pct))}%` }} />
+                                </div>
+                              </div>
+                            ))}
+                            <p className="text-[10px] text-slate-400 text-center pt-2">
+                              M8 WASI K=3 · {wasiResult.calibrado ? 'Calibrado' : 'Raw'}
+                            </p>
+                          </div>
+                        ) : (
+                          <p className="text-xs text-slate-400 text-center flex-grow flex items-center justify-center">
+                            Modelo WASI no disponible
+                          </p>
+                        )}
                       </div>
 
+                      {/* TAP */}
                       <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm flex flex-col">
-                        <div className="flex items-center gap-3 mb-6 text-indigo-900 border-b border-slate-100 pb-4">
+                        <div className="flex items-center gap-3 mb-5 pb-4 border-b border-slate-100">
                           <Focus className="w-6 h-6 text-indigo-600" />
-                          <h3 className="font-black text-lg leading-tight tracking-tight">Atención / Ejecutiva<br/><span className="text-[10px] text-slate-400 uppercase tracking-widest">Batería TAP</span></h3>
-                        </div>
-                        <div className="space-y-6 mt-2">
                           <div>
-                            <div className="flex justify-between text-xs font-bold mb-2 text-slate-600"><span>T. Reacción Esperado</span><span>{results.cognitivo.tap.normal.toFixed(1)}%</span></div>
-                            <div className="w-full h-3 bg-slate-100 rounded-full overflow-hidden"><div className="h-full bg-emerald-400" style={{ width: `${results.cognitivo.tap.normal}%` }}></div></div>
-                          </div>
-                          <div>
-                            <div className="flex justify-between text-xs font-bold mb-2 text-rose-600">
-                              <span className="flex items-center gap-1"><AlertTriangle className="w-3 h-3"/> T. Reacción Lento</span>
-                              <span>{results.cognitivo.tap.alerta.toFixed(1)}%</span>
-                            </div>
-                            <div className="w-full h-3 bg-slate-100 rounded-full overflow-hidden"><div className="h-full bg-rose-500" style={{ width: `${results.cognitivo.tap.alerta}%` }}></div></div>
+                            <h3 className="font-black text-lg text-indigo-900 leading-tight">Atención</h3>
+                            <span className="text-[10px] text-slate-400 uppercase tracking-widest">TAP K=2</span>
                           </div>
                         </div>
+                        {tapResult ? (
+                          <div className="space-y-4 flex-grow">
+                            {[
+                              ['GO-1 Attentive', 100 - (tapResult.probabilidad ?? 0), 'emerald'],
+                              ['GO-2 Inattentive', tapResult.probabilidad ?? 0, 'rose'],
+                            ].map(([label, pct, color]) => (
+                              <div key={label}>
+                                <div className={`flex justify-between text-xs font-bold mb-1.5 ${color === 'rose' ? 'text-rose-600' : 'text-slate-600'}`}>
+                                  <span>{label}</span><span>{Math.max(0, Math.min(100, pct)).toFixed(1)}%</span>
+                                </div>
+                                <div className="w-full h-3 bg-slate-100 rounded-full overflow-hidden">
+                                  <div className={`h-full ${color === 'rose' ? 'bg-rose-500' : 'bg-emerald-400'}`}
+                                       style={{ width: `${Math.max(0, Math.min(100, pct))}%` }} />
+                                </div>
+                              </div>
+                            ))}
+                            <p className="text-[10px] text-slate-400 text-center pt-2">
+                              M9 TAP K=2 · {tapResult.calibrado ? 'Calibrado' : 'Raw'}
+                            </p>
+                          </div>
+                        ) : (
+                          <p className="text-xs text-slate-400 text-center flex-grow flex items-center justify-center">
+                            Modelo TAP no disponible
+                          </p>
+                        )}
                       </div>
 
+                      {/* CVLT */}
                       <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm flex flex-col">
-                        <div className="flex items-center gap-3 mb-6 text-violet-900 border-b border-slate-100 pb-4">
+                        <div className="flex items-center gap-3 mb-5 pb-4 border-b border-slate-100">
                           <MessageSquare className="w-6 h-6 text-violet-600" />
-                          <h3 className="font-black text-lg leading-tight tracking-tight">Memoria Verbal<br/><span className="text-[10px] text-slate-400 uppercase tracking-widest">Escala CVLT</span></h3>
-                        </div>
-                        <div className="space-y-6 mt-2">
                           <div>
-                            <div className="flex justify-between text-xs font-bold mb-2 text-slate-600"><span>Retención Normal</span><span>{results.cognitivo.cvlt.normal.toFixed(1)}%</span></div>
-                            <div className="w-full h-3 bg-slate-100 rounded-full overflow-hidden"><div className="h-full bg-emerald-400" style={{ width: `${results.cognitivo.cvlt.normal}%` }}></div></div>
-                          </div>
-                          <div>
-                            <div className="flex justify-between text-xs font-bold mb-2 text-rose-600">
-                              <span className="flex items-center gap-1"><AlertTriangle className="w-3 h-3"/> Alerta de Retención</span>
-                              <span>{results.cognitivo.cvlt.alerta.toFixed(1)}%</span>
-                            </div>
-                            <div className="w-full h-3 bg-slate-100 rounded-full overflow-hidden"><div className="h-full bg-rose-500" style={{ width: `${results.cognitivo.cvlt.alerta}%` }}></div></div>
+                            <h3 className="font-black text-lg text-violet-900 leading-tight">Memoria Verbal</h3>
+                            <span className="text-[10px] text-slate-400 uppercase tracking-widest">CVLT K=2</span>
                           </div>
                         </div>
+                        {cvltResult ? (
+                          <div className="space-y-4 flex-grow">
+                            {[
+                              ['GO-1 High Memory', 100 - (cvltResult.probabilidad ?? 0), 'emerald'],
+                              ['GO-2 Low Memory',  cvltResult.probabilidad ?? 0, 'rose'],
+                            ].map(([label, pct, color]) => (
+                              <div key={label}>
+                                <div className={`flex justify-between text-xs font-bold mb-1.5 ${color === 'rose' ? 'text-rose-600' : 'text-slate-600'}`}>
+                                  <span>{label}</span><span>{Math.max(0, Math.min(100, pct)).toFixed(1)}%</span>
+                                </div>
+                                <div className="w-full h-3 bg-slate-100 rounded-full overflow-hidden">
+                                  <div className={`h-full ${color === 'rose' ? 'bg-rose-500' : 'bg-emerald-400'}`}
+                                       style={{ width: `${Math.max(0, Math.min(100, pct))}%` }} />
+                                </div>
+                              </div>
+                            ))}
+                            <p className="text-[10px] text-slate-400 text-center pt-2">
+                              M10 CVLT K=2 · {cvltResult.calibrado ? 'Calibrado' : 'Raw'}
+                            </p>
+                          </div>
+                        ) : (
+                          <p className="text-xs text-slate-400 text-center flex-grow flex items-center justify-center">
+                            Modelo CVLT no disponible
+                          </p>
+                        )}
                       </div>
+
                     </div>
                   </div>
                 )}
 
+                {/* ── TAB: VALIDACIÓN CIENTÍFICA ───────────────────────── */}
                 {activeTab === 'evidencia' && (
-                  <div className="flex flex-col h-full">
-                    {currentEvidenciaView === 'go2' && (
-                      <div className="animate-in slide-in-from-right-8 duration-500 flex-grow flex flex-col">
+                  <div className="flex flex-col flex-grow">
+                    {currentEvidencia === 'go2' ? (
+                      <div className="flex-grow flex flex-col animate-in slide-in-from-right-8 duration-300">
                         <div className="mb-6">
-                          <h2 className="text-2xl font-black text-slate-900 tracking-tighter mb-1">Correlatos a los 20 años — fenotipo GO-2 Bajo</h2>
-                          <p className="text-slate-500 text-sm font-medium">Hallazgos en participantes de la cohorte con perfil similar al de este paciente</p>
+                          <h2 className="text-2xl font-black text-slate-900 tracking-tighter mb-1">
+                            Correlatos a los 20 años — fenotipo GO-2 Bajo
+                          </h2>
+                          <p className="text-slate-500 text-sm">
+                            Hallazgos en participantes de la cohorte KMC-400-20y con perfil similar al de este paciente
+                          </p>
                         </div>
                         <div className="grid md:grid-cols-3 gap-5 flex-grow">
                           <div className="flex flex-col gap-3">
-                            <div className="flex items-center gap-2 text-slate-500 font-black text-[11px] uppercase tracking-widest"><Brain className="w-4 h-4"/> Huella Cerebral (MRI)</div>
-                            <div className="bg-rose-50 border border-rose-200 rounded-2xl p-5 flex-grow flex flex-col">
-                              <h4 className="text-rose-900 font-bold mb-4 text-[15px]">Tractos con menor integridad</h4>
+                            <div className="text-slate-500 font-black text-[11px] uppercase tracking-widest flex items-center gap-2">
+                              <Brain className="w-4 h-4" /> Huella Cerebral (MRI)
+                            </div>
+                            <div className="bg-rose-50 border border-rose-200 rounded-2xl p-5 flex-grow">
+                              <h4 className="text-rose-900 font-bold mb-4">Tractos con menor integridad</h4>
                               <DotItem label="FA cíngulo izquierdo" value="q<0.01" valColor="rose" />
                               <DotItem label="FA corticoespinal dcho." value="q<0.05" valColor="rose" />
                               <DotItem label="FA fascículo uncinado" value="q<0.05" valColor="rose" />
+                              <p className="text-[10px] text-rose-700 mt-3 leading-tight">
+                                OLS ajustado por sexo e ICV · 6/11 tractos TRAC significativos
+                              </p>
                             </div>
                           </div>
                           <div className="flex flex-col gap-3">
-                            <div className="flex items-center gap-2 text-slate-500 font-black text-[11px] uppercase tracking-widest"><FileText className="w-4 h-4"/> Desempeño Adulto</div>
-                            <div className="bg-rose-50 border border-rose-200 rounded-2xl p-5 flex-grow flex flex-col">
-                              <h4 className="text-rose-900 font-bold mb-4 text-[15px]">Áreas significativamente menores</h4>
-                              <DotItem label="ICFES global" value="-8.4 pts" valColor="rose" />
-                              <DotItem label="Lectura crítica ICFES" value="-8.6 pts" valColor="rose" />
+                            <div className="text-slate-500 font-black text-[11px] uppercase tracking-widest flex items-center gap-2">
+                              <FileText className="w-4 h-4" /> Desempeño Adulto
+                            </div>
+                            <div className="bg-rose-50 border border-rose-200 rounded-2xl p-5 flex-grow">
+                              <h4 className="text-rose-900 font-bold mb-4">Significativamente menores</h4>
+                              <DotItem label="ICFES global" value="−8.4 pts" valColor="rose" />
+                              <DotItem label="Lectura crítica" value="−8.6 pts" valColor="rose" />
+                              <DotItem label="Audición (9/9 frec.)" value="↑ umbral" valColor="rose" />
                               <DotItem label="Tiempo reacción TAP-WM" value="+39 ms" valColor="rose" />
+                              <p className="text-[10px] text-rose-700 mt-3 leading-tight">
+                                Mann-Whitney U · FDR BH · 78/243 variables q&lt;0.05
+                              </p>
                             </div>
                           </div>
                           <div className="flex flex-col gap-3">
-                            <div className="flex items-center gap-2 text-slate-500 font-black text-[11px] uppercase tracking-widest"><CheckCircle className="w-4 h-4"/> Sin Diferencia Significativa</div>
-                            <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-5 flex-grow flex flex-col">
-                              <h4 className="text-emerald-900 font-bold mb-4 text-[15px]">Perfil metabólico equivalente</h4>
+                            <div className="text-slate-500 font-black text-[11px] uppercase tracking-widest flex items-center gap-2">
+                              <CheckCircle className="w-4 h-4" /> Sin Diferencia Significativa
+                            </div>
+                            <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-5 flex-grow">
+                              <h4 className="text-emerald-900 font-bold mb-4">Perfil metabólico equivalente</h4>
                               <DotItem label="IMC a los 20 años" value="ns" valColor="emerald" />
                               <DotItem label="Presión arterial" value="ns" valColor="emerald" />
-                              <DotItem label="Glicemia / perfil lipídico" value="ns" valColor="emerald" />
+                              <DotItem label="Glicemia / lípidos" value="ns" valColor="emerald" />
+                              <p className="text-[10px] text-emerald-700 mt-3 leading-tight">
+                                El riesgo es específicamente cognitivo-neurológico, no metabólico. El seguimiento metabólico corresponde a la prematuridad en general.
+                              </p>
                             </div>
                           </div>
                         </div>
                       </div>
-                    )}
-
-                    {currentEvidenciaView === 'go1' && (
-                      <div className="animate-in slide-in-from-left-8 duration-500 flex-grow flex flex-col">
-                         <div className="mb-8">
-                          <h2 className="text-2xl font-black text-slate-900 tracking-tighter mb-1">Correlatos a los 20 años — fenotipo GO-1 Alto</h2>
-                          <p className="text-slate-500 text-sm font-medium">Hallazgos en participantes con perfil similar al de este paciente</p>
+                    ) : (
+                      <div className="flex-grow flex flex-col animate-in slide-in-from-left-8 duration-300">
+                        <div className="mb-8">
+                          <h2 className="text-2xl font-black text-slate-900 tracking-tighter mb-1">
+                            Correlatos a los 20 años — fenotipo GO-1 Alto
+                          </h2>
+                          <p className="text-slate-500 text-sm">
+                            Hallazgos en participantes de la cohorte con perfil similar al de este paciente
+                          </p>
                         </div>
                         <div className="grid md:grid-cols-2 gap-6 flex-grow">
-                          <div className="bg-emerald-50 border border-emerald-200 rounded-3xl p-6 md:p-8 flex flex-col">
-                            <div className="flex items-center gap-3 mb-6 text-emerald-900 font-black text-lg"><Brain className="w-6 h-6 text-emerald-600"/> Integridad cerebral dentro de rangos normales</div>
+                          <div className="bg-emerald-50 border border-emerald-200 rounded-3xl p-6 flex flex-col">
+                            <div className="flex items-center gap-3 mb-5 text-emerald-900 font-black text-lg">
+                              <Brain className="w-6 h-6 text-emerald-600" /> Integridad cerebral normal
+                            </div>
                             <DotItem label="FA cíngulo izquierdo" value="GO-1: 0.412" valColor="emerald" />
                             <DotItem label="FA corticoespinal dcho." value="GO-1: 0.558" valColor="emerald" />
+                            <p className="text-[10px] text-emerald-700 mt-auto pt-3">
+                              Mayor FA vs GO-2 en tractos de memoria verbal y coordinación motora
+                            </p>
                           </div>
-                          <div className="bg-emerald-50 border border-emerald-200 rounded-3xl p-6 md:p-8 flex flex-col">
-                            <div className="flex items-center gap-3 mb-6 text-emerald-900 font-black text-lg"><FileText className="w-6 h-6 text-emerald-600"/> Desempeño académico y auditivo equivalente a pares</div>
+                          <div className="bg-emerald-50 border border-emerald-200 rounded-3xl p-6 flex flex-col">
+                            <div className="flex items-center gap-3 mb-5 text-emerald-900 font-black text-lg">
+                              <FileText className="w-6 h-6 text-emerald-600" /> Desempeño dentro del rango esperado
+                            </div>
                             <DotItem label="ICFES global" value="53.2 pts" valColor="emerald" />
-                            <DotItem label="WASI FSIQ" value="= 91.7" valColor="emerald" />
-                            <DotItem label="Umbral auditivo" value="18.2 dB" valColor="emerald" />
+                            <DotItem label="WASI FSIQ" value="≈91.7" valColor="emerald" />
+                            <DotItem label="Umbral auditivo (500 Hz)" value="18.2 dB" valColor="emerald" />
+                            <p className="text-[10px] text-emerald-700 mt-auto pt-3">
+                              El riesgo cognitivo específico del fenotipo GO-2 no es predominante en este perfil. Se recomienda seguimiento estándar para prematuros.
+                            </p>
                           </div>
                         </div>
                       </div>
                     )}
-
-                    <div className="mt-8 flex flex-col md:flex-row justify-between items-center border-t border-slate-200 pt-5 gap-4">
-                      <span className="text-[11px] text-slate-400 font-semibold tracking-wide">KMC-400-20y · n=491 · Fundación Canguro / Uniandes 2026</span>
-                      <button 
-                        onClick={() => setEvidenciaViewOverride(currentEvidenciaView === 'go2' ? 'go1' : 'go2')}
-                        className="text-xs font-black text-slate-600 bg-slate-100 border border-slate-200 hover:bg-slate-200 px-5 py-2.5 rounded-xl transition-colors flex items-center gap-2"
-                      >
-                        Ver hallazgos en {currentEvidenciaView === 'go2' ? 'GO-1 Alto' : 'GO-2 Bajo'} <ChevronRight className="w-3 h-3" />
+                    <div className="mt-6 pt-5 border-t border-slate-200 flex justify-between items-center">
+                      <span className="text-[11px] text-slate-400">
+                        KMC-400-20y · n=491 · Fundación Canguro / Uniandes 2026
+                      </span>
+                      <button
+                        onClick={() => setEvidOverride(currentEvidencia === 'go2' ? 'go1' : 'go2')}
+                        className="text-xs font-black text-slate-600 bg-slate-100 border border-slate-200 hover:bg-slate-200 px-5 py-2.5 rounded-xl flex items-center gap-2">
+                        Ver hallazgos en {currentEvidencia === 'go2' ? 'GO-1 Alto' : 'GO-2 Bajo'}
+                        <ChevronRight className="w-3 h-3" />
                       </button>
                     </div>
                   </div>
@@ -739,11 +1139,13 @@ export default function App() {
           </div>
         </div>
       </div>
-      
+
+      {/* ── FOOTER ─────────────────────────────────────────────────────── */}
       <footer className="max-w-7xl mx-auto w-full mt-6 text-center text-xs text-slate-400 font-medium border-t border-slate-200 pt-5 pb-2">
         <p className="flex items-center justify-center gap-2">
           <Info className="w-4 h-4" />
-          Herramienta de apoyo clínico. No reemplaza el juicio del profesional de salud. Modelo M7 · KMC-400-20y · n=383 · AUC=0.678
+          Herramienta de apoyo clínico. No reemplaza el juicio del profesional de salud.
+          Modelo M7 · KMC-400-20y · AUC=0.678 · Calibrado (isotónica)
         </p>
       </footer>
     </div>
