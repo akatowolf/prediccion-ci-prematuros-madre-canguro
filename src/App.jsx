@@ -14,11 +14,6 @@ import {
 // ─────────────────────────────────────────────────────────────────────────────
 
 const API_URL = import.meta.env.VITE_API_URL || 'https://44.201.230.38.nip.io';
-const response = await fetch(`${API_URL}/api/predecir`, {
-  method: 'POST',
-  headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify(inputs)
-});
 // ─────────────────────────────────────────────────────────────────────────────
 // IMÁGENES DE EVIDENCIA CIENTÍFICA
 // Exportar desde Databricks con: fig.savefig("nombre.png", dpi=150, bbox_inches="tight", facecolor="white")
