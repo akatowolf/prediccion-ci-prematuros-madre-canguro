@@ -15,8 +15,69 @@ import {
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
 // ─────────────────────────────────────────────────────────────────────────────
+// IMÁGENES DE EVIDENCIA CIENTÍFICA
+// Exportar desde Databricks con: fig.savefig("nombre.png", dpi=150, bbox_inches="tight", facecolor="white")
+// Copiar a: src/assets/evidencia/
+// ─────────────────────────────────────────────────────────────────────────────
+// Importar dinámicamente para evitar errores si las imágenes no existen aún
+const IMG = {
+  fa_tractos   : new URL('./assets/evidencia/fa_tractos.png',    import.meta.url).href,
+  icfes        : new URL('./assets/evidencia/icfes_comparacion.png', import.meta.url).href,
+  audiometria  : new URL('./assets/evidencia/audiometria.png',   import.meta.url).href,
+  shap_global  : new URL('./assets/evidencia/shap_global.png',   import.meta.url).href,
+  calibracion  : new URL('./assets/evidencia/calibracion.png',   import.meta.url).href,
+  roc_m7       : new URL('./assets/evidencia/roc_m7.png',        import.meta.url).href,
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
 // UTILS
 // ─────────────────────────────────────────────────────────────────────────────
+// ─── Image Modal ────────────────────────────────────────────────────────────
+const ImageModal = ({ src, alt, onClose }) => (
+  <div className="fixed inset-0 bg-black/75 z-[100] flex items-center justify-center p-4"
+       onClick={onClose}>
+    <div className="relative max-w-5xl w-full" onClick={e => e.stopPropagation()}>
+      <button onClick={onClose}
+              className="absolute -top-10 right-0 text-white font-black text-sm
+                         hover:text-slate-300 flex items-center gap-1">
+        <X className="w-4 h-4" /> Cerrar
+      </button>
+      <img src={src} alt={alt}
+           className="w-full rounded-2xl shadow-2xl border border-white/10" />
+      <p className="text-center text-slate-400 text-xs mt-3">{alt}</p>
+    </div>
+  </div>
+);
+
+// ─── Evidence Image Card ─────────────────────────────────────────────────────
+const EvidenceImg = ({ src, alt, caption, onZoom }) => {
+  const [error, setError] = React.useState(false);
+  if (error) return (
+    <div className="w-full h-28 rounded-xl border border-dashed border-slate-300
+                    flex flex-col items-center justify-center text-slate-400 text-xs gap-1">
+      <span>📊</span>
+      <span>Exportar imagen desde Databricks</span>
+      <code className="text-[9px] opacity-70">{alt}</code>
+    </div>
+  );
+  return (
+    <div className="mt-3 group relative">
+      <img src={src} alt={alt} onError={() => setError(true)}
+           onClick={() => onZoom(src, caption || alt)}
+           className="w-full rounded-xl border border-slate-200 cursor-zoom-in
+                      hover:border-blue-400 transition-all hover:shadow-lg" />
+      <div className="absolute inset-0 flex items-center justify-center
+                      opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+        <span className="bg-black/50 text-white text-[10px] font-bold
+                         px-3 py-1 rounded-full">Ver en grande</span>
+      </div>
+      {caption && (
+        <p className="text-[10px] text-slate-400 text-center mt-1 leading-tight">{caption}</p>
+      )}
+    </div>
+  );
+};
+
 const DotItem = ({ label, value, valColor }) => (
   <div className="flex justify-between items-start text-[13px] mb-2">
     <div className="flex items-start gap-2 mt-0.5">
@@ -149,6 +210,7 @@ export default function App() {
   const [apiError, setApiError]       = useState(null);
   const [uploadMsg, setUploadMsg]     = useState(null);
   const [evidOverride, setEvidOverride] = useState(null);
+  const [modalImg, setModalImg]         = useState(null);   // {src, alt}
   const [apiStatus, setApiStatus]     = useState('unknown'); // 'ok' | 'error' | 'unknown'
   const fileInputRef = useRef(null);
 
@@ -289,7 +351,7 @@ export default function App() {
       ingreso_percapita:  '75000',
       griffiths_motor:    '3',
       griffiths_general:  '85',
-      leucomalacia:       '1',
+      // leucomalacia omitida — no en TOP15 y difícil de obtener
       peso_12m_g:         '8100',
       talla_12m_cm:       '71',
       griffiths_loco12:   '90',
@@ -347,6 +409,12 @@ export default function App() {
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 font-sans p-4 md:p-8 flex flex-col">
 
+      {/* ── IMAGE MODAL ─────────────────────────────────────────────────── */}
+      {modalImg && (
+        <ImageModal src={modalImg.src} alt={modalImg.alt}
+                    onClose={() => setModalImg(null)} />
+      )}
+
       {/* ── FORM MODAL ──────────────────────────────────────────────────── */}
       {isFormOpen && (
         <div className="fixed inset-0 bg-slate-900/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
@@ -357,14 +425,6 @@ export default function App() {
                 <h2 className="text-lg font-black text-slate-800 flex items-center gap-2">
                   <ClipboardList className="w-5 h-5 text-blue-600" /> Ingreso de Datos Clínicos
                 </h2>
-                <div className="flex gap-4 mt-1 text-[11px] font-bold">
-                  <span className="text-rose-600 flex items-center gap-1">
-                    <div className="w-2 h-2 rounded-full bg-rose-500" /> AUC 0.695 (Mínimo)
-                  </span>
-                  <span className="text-amber-600 flex items-center gap-1">
-                    <div className="w-2 h-2 rounded-full bg-amber-500" /> Reduce Falsos Neg.
-                  </span>
-                </div>
               </div>
               <button onClick={() => setIsFormOpen(false)}
                       className="p-2 hover:bg-slate-100 rounded-full transition-colors">
@@ -375,16 +435,60 @@ export default function App() {
             <div className="flex-grow overflow-y-auto p-6 bg-slate-50">
               <div className="max-w-3xl mx-auto">
 
+                {/* INFO PANEL — TOP15 mapping */}
+                <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-5">
+                  <div className="text-[11px] font-black text-blue-800 uppercase tracking-widest mb-3">
+                    Variables del modelo 
+                  </div>
+                  <div className="grid grid-cols-3 gap-3 text-[11px]">
+                    <div>
+                      <div className="font-bold text-rose-700 mb-1.5 flex items-center gap-1">
+                        <div className="w-2 h-2 rounded-full bg-rose-500"/> Obligatorio 
+                      </div>
+                      <div className="space-y-1 text-slate-600 leading-relaxed">
+                        <div>• Educación materna</div>
+                        <div>• Perímetro Craneal al nacer <span className="text-blue-600 font-medium"></span></div>
+                        <div>• Perímetro Craneal 40 sem → <span className="text-blue-600 font-medium"></span></div>
+                        <div>• Cociente auditivo 6m</div>
+                        <div>• Días O₂</div>
+                      </div>
+                    </div>
+                    <div>
+                      <div className="font-bold text-amber-700 mb-1.5 flex items-center gap-1">
+                        <div className="w-2 h-2 rounded-full bg-amber-500"/> Recomendado 
+                      </div>
+                      <div className="space-y-1 text-slate-600 leading-relaxed">
+                        <div>• Griffiths motor 6m</div>
+                        <div>• Fototerapia</div>
+                        <div>• Días hospitalización</div>
+                        <div>• Griffiths general 6m</div>
+                      </div>
+                    </div>
+                    <div>
+                      <div className="font-bold text-emerald-700 mb-1.5 flex items-center gap-1">
+                        <div className="w-2 h-2 rounded-full bg-emerald-500"/> Opcional 
+                      </div>
+                      <div className="space-y-1 text-slate-600 leading-relaxed">
+                        <div>• Peso 3m + 12m → <span className="text-blue-600 font-medium">Δ velocidad peso</span></div>
+                        <div>• Talla 3m + 12m → <span className="text-blue-600 font-medium">Δ velocidad talla</span></div>
+                        <div>• Ingreso per cápita</div>
+                        <div>• Talla 40 semanas</div>
+                        <div>• Locomoción Griffiths 12m</div>
+                        <div>• Educación paterna</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
                 {/* NIVEL 1 */}
-                <FormSection title="Nivel 1: Predictores Ancla" level="obligatorio"
-                             icon={TrendingUp}
-                             desc="Variables mínimas requeridas. AUC ≥ 0.695 con solo estos 6 campos.">
+                <FormSection title="Nivel 1" level="obligatorio"
+                             desc="Variables mínimas requeridas.">
                   <div className="bg-white rounded-lg p-4 border border-rose-100 mb-4 shadow-sm">
                     <h4 className="text-[11px] font-black text-rose-800 uppercase tracking-widest mb-3">
-                      Trayectoria de Crecimiento Cerebral (Fenton 2013)
+                      Trayectoria de Crecimiento Cerebral 
                     </h4>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      <FormGroup label="PC al nacer" unit="mm" required helper="En mm. Mediana: 280–340 mm">
+                      <FormGroup label="Perímetro Craneal al nacer" unit="mm" required helper="En mm. Mediana: 280–340 mm">
                         <input type="number" name="pc_nacer_mm" value={formData.pc_nacer_mm}
                                onChange={handleChange} min="180" max="400"
                                className="w-full border border-slate-300 rounded-lg p-2 text-sm focus:ring-2 focus:ring-rose-200 outline-none" />
@@ -394,7 +498,7 @@ export default function App() {
                                onChange={handleChange} min="24" max="36"
                                className="w-full border border-slate-300 rounded-lg p-2 text-sm focus:ring-2 focus:ring-rose-200 outline-none" />
                       </FormGroup>
-                      <FormGroup label="PC a las 40 sem EC" unit="cm" required helper="En cm. Rango: 30–40 cm">
+                      <FormGroup label="Perímetro craneal a las 40 semanas Edad corregida" unit="cm" required helper="En cm. Rango: 30–40 cm">
                         <input type="number" name="pc_40sem_cm" value={formData.pc_40sem_cm}
                                onChange={handleChange} min="28" max="44" step="0.1"
                                className="w-full border border-slate-300 rounded-lg p-2 text-sm focus:ring-2 focus:ring-rose-200 outline-none" />
@@ -428,9 +532,8 @@ export default function App() {
                 </FormSection>
 
                 {/* NIVEL 2 */}
-                <FormSection title="Nivel 2: Estabilización del Modelo" level="recomendado"
-                             desc="Reduce drásticamente los Falsos Negativos. AUC ≈ 0.689.">
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                <FormSection title="Nivel 2" level="recomendado">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-3">
                     <FormGroup label="Peso al nacer" unit="g" helper="Rango prematuros: 400–2.500 g">
                       <input type="number" name="peso_nacer_g" value={formData.peso_nacer_g}
                              onChange={handleChange} min="400" max="3500"
@@ -449,16 +552,7 @@ export default function App() {
                              onChange={handleChange} min="0" max="500"
                              className="w-full border border-amber-300 rounded-lg p-2 text-sm outline-none" />
                     </FormGroup>
-                    <FormGroup label="Leucomalacia periventricular">
-                      <select name="leucomalacia" value={formData.leucomalacia} onChange={handleChange}
-                              className="w-full border border-amber-300 rounded-lg p-2 text-sm outline-none bg-white">
-                        <option value="">No explorada / ausente</option>
-                        <option value="0">0 — Ausente confirmada</option>
-                        <option value="1">1 — Leve</option>
-                        <option value="2">2 — Moderada</option>
-                        <option value="3">3 — Severa</option>
-                      </select>
-                    </FormGroup>
+
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                     <FormGroup label="Días hospitalización" unit="días">
@@ -491,20 +585,20 @@ export default function App() {
                 </FormSection>
 
                 {/* NIVEL 3 */}
-                <FormSection title="Nivel 3: Modelo M7 Completo" level="opcional"
-                             desc="Variables que habilitan el cálculo de deltas de velocidad de crecimiento.">
+                <FormSection title="Nivel 3" level="opcional">
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-                    <FormGroup label="Ingreso per cápita" unit="COP/mes">
+                    <FormGroup label="Ingreso per cápita del hogar"
+                               helper="Total ingresos del hogar ÷ número de personas">
                       <select name="ingreso_percapita" value={formData.ingreso_percapita}
                               onChange={handleChange}
                               className="w-full border border-emerald-300 rounded-lg p-2 text-sm outline-none bg-white">
                         <option value="">Seleccionar…</option>
-                        <option value="35000">&lt; $50.000</option>
-                        <option value="75000">$50.000 – $100.000</option>
-                        <option value="150000">$100.000 – $200.000</option>
-                        <option value="300000">$200.000 – $400.000</option>
-                        <option value="600000">$400.000 – $800.000</option>
-                        <option value="1200000">&gt; $800.000</option>
+                        <option value="33000">&lt; 1 SMMLV — menos de $1.750.000</option>
+                        <option value="55000">1 – 2 SMMLV — $1.750.000 a $3.500.000</option>
+                        <option value="100000">2 – 3 SMMLV — $3.500.000 a $5.250.000</option>
+                        <option value="130000">3 – 4 SMMLV — $5.250.000 a $7.000.000</option>
+                        <option value="160000">4 – 5 SMMLV — $7.000.000 a $8.750.000</option>
+                        <option value="200000">&gt; 5 SMMLV — más de $8.750.000</option>
                       </select>
                     </FormGroup>
                     <FormGroup label="Educación paterna">
@@ -519,7 +613,7 @@ export default function App() {
                         <option value="5">5 — Posgrado</option>
                       </select>
                     </FormGroup>
-                    <FormGroup label="Talla 40 sem EC" unit="mm">
+                    <FormGroup label="Talla 40 sem Edad Corregida" unit="mm">
                       <input type="number" name="talla_40sem_mm"
                              value={formData.talla_40sem_mm} onChange={handleChange}
                              min="360" max="580"
@@ -527,22 +621,22 @@ export default function App() {
                     </FormGroup>
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                    <FormGroup label="Peso 3m EC" unit="g">
+                    <FormGroup label="Peso 3m Edad Corregida" unit="g">
                       <input type="number" name="peso_3m_g" value={formData.peso_3m_g}
                              onChange={handleChange} min="2500" max="8000"
                              className="w-full border border-emerald-300 rounded-lg p-2 text-sm outline-none" />
                     </FormGroup>
-                    <FormGroup label="Talla 3m EC" unit="mm">
+                    <FormGroup label="Talla 3m Edad Corregida" unit="mm">
                       <input type="number" name="talla_3m_mm" value={formData.talla_3m_mm}
                              onChange={handleChange} min="450" max="680"
                              className="w-full border border-emerald-300 rounded-lg p-2 text-sm outline-none" />
                     </FormGroup>
-                    <FormGroup label="Peso 12m EC" unit="g">
+                    <FormGroup label="Peso 12m Edad Corregida" unit="g">
                       <input type="number" name="peso_12m_g" value={formData.peso_12m_g}
                              onChange={handleChange} min="5000" max="14000"
                              className="w-full border border-emerald-300 rounded-lg p-2 text-sm outline-none" />
                     </FormGroup>
-                    <FormGroup label="Talla 12m EC" unit="cm">
+                    <FormGroup label="Talla 12m Edad Corregida" unit="cm">
                       <input type="number" name="talla_12m_cm" value={formData.talla_12m_cm}
                              onChange={handleChange} min="60" max="86" step="0.5"
                              className="w-full border border-emerald-300 rounded-lg p-2 text-sm outline-none" />
@@ -555,12 +649,7 @@ export default function App() {
                              min="50" max="160"
                              className="w-full border border-emerald-300 rounded-lg p-2 text-sm outline-none" />
                     </FormGroup>
-                    <FormGroup label="Días aminoglucósidos" unit="días" helper="Gentamicina, amikacina u otros (ototóxicos)">
-                      <input type="number" name="dias_aminoglucosidos"
-                             value={formData.dias_aminoglucosidos} onChange={handleChange}
-                             min="0" max="30"
-                             className="w-full border border-emerald-300 rounded-lg p-2 text-sm outline-none" />
-                    </FormGroup>
+
                   </div>
                 </FormSection>
               </div>
@@ -592,7 +681,7 @@ export default function App() {
             <Brain className="w-8 h-8 text-white" />
           </div>
           <div>
-            <h1 className="text-2xl font-black text-slate-900 tracking-tight">KMC-20 Predictor</h1>
+            <h1 className="text-2xl font-black text-slate-900 tracking-tight">KMC Predictor</h1>
             <p className="text-sm text-slate-500 font-bold uppercase tracking-widest">Seguimiento Longitudinal 20 Años</p>
           </div>
         </div>
@@ -603,7 +692,7 @@ export default function App() {
           }`} />
           <span className="text-xs font-black text-slate-500 uppercase tracking-tighter">
             Motor de Inferencia: {
-              apiStatus === 'ok'    ? 'Local · M7 Activo' :
+              apiStatus === 'ok'    ? 'Activo' :
               apiStatus === 'error' ? 'Sin Conexión' : 'Conectando…'
             }
           </span>
@@ -660,29 +749,25 @@ export default function App() {
                 </div>
               )}
 
+
               {/* Variables extraídas */}
               {results?.meta && (
                 <div className="bg-slate-50 rounded-2xl p-4 border border-slate-200">
                   <h3 className="text-[10px] font-black text-slate-400 uppercase mb-3 tracking-[0.2em]">
                     Variables Extraídas
                   </h3>
-                  <div className="space-y-1.5">
+                  <div className="space-y-2">
+
                     {formData.peso_nacer_g && (
                       <div className="flex justify-between text-xs">
                         <span className="text-slate-500">Peso nacer:</span>
                         <span className="font-black">{formData.peso_nacer_g} g</span>
                       </div>
                     )}
-                    {formData.pc_nacer_mm && (
-                      <div className="flex justify-between text-xs">
-                        <span className="text-slate-500">EG:</span>
-                        <span className="font-black">{formData.eg_semanas} sem</span>
-                      </div>
-                    )}
                     {formData.eg_semanas && (
                       <div className="flex justify-between text-xs">
-                        <span className="text-slate-500">Edad Gest.:</span>
-                        <span className="font-black">{formData.eg_semanas} sem</span>
+                        <span className="text-slate-500">Edad gestacional:</span>
+                        <span className="font-black">{formData.eg_semanas} semanas</span>
                       </div>
                     )}
                     {formData.dias_oxigeno && (
@@ -691,25 +776,82 @@ export default function App() {
                         <span className="font-black">{formData.dias_oxigeno} d</span>
                       </div>
                     )}
-                    {catchupVal !== null && catchupVal !== undefined && (
-                      <div className="flex justify-between text-xs">
-                        <span className="text-slate-500">Catch-up PC:</span>
-                        <span className={`font-black ${catchupVal < -0.5 ? 'text-rose-600' : 'text-emerald-700'}`}>
-                          {catchupVal > 0 ? '+' : ''}{catchupVal} Δσ
-                        </span>
-                      </div>
-                    )}
-                    {formData.griffiths_auditivo && (
-                      <div className="flex justify-between text-xs">
-                        <span className="text-slate-500">Audición 6m:</span>
-                        <span className="font-black">{formData.griffiths_auditivo} pts</span>
-                      </div>
-                    )}
-                    {meta.n_campos_imputados > 0 && (
-                      <div className="text-[10px] text-slate-400 mt-2 pt-2 border-t border-slate-200">
-                        {meta.n_campos_imputados} campo(s) imputados con mediana de entrenamiento
-                      </div>
-                    )}
+
+                    {/* Recuperación PC — barra + etiqueta + explicación */}
+                    {catchupVal !== null && catchupVal !== undefined && (() => {
+                      const cu = catchupVal;
+                      const label = cu >= 0    ? 'Adecuada'
+                                  : cu >= -0.5 ? 'Parcial'
+                                  : cu >= -1   ? 'Limitada'
+                                  :              'Muy por debajo';
+                      const color = cu >= 0    ? 'text-emerald-700'
+                                  : cu >= -0.5 ? 'text-amber-600'
+                                  : cu >= -1   ? 'text-amber-700'
+                                  :              'text-rose-600';
+                      const barColor = cu >= 0    ? '#16a34a'
+                                     : cu >= -0.5 ? '#d97706'
+                                     : cu >= -1   ? '#b45309'
+                                     :              '#dc2626';
+                      const barPct = Math.max(2, Math.min(98, ((cu + 3) / 6) * 100));
+                      const desc = cu >= 0
+                        ? 'La cabeza ganó posición respecto a pares de la misma EG'
+                        : cu >= -1
+                          ? 'La cabeza creció menos de lo esperado para su edad gestacional'
+                          : 'Crecimiento cefálico muy por debajo de sus pares prematuros';
+                      return (
+                        <div className="pt-0.5">
+                          <div className="flex justify-between text-xs mb-1">
+                            <span className="text-slate-500">Recuperación Perímetro Craneal:</span>
+                            <span className={`font-black text-[11px] ${color}`}>{label}</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <div className="flex-1 h-1.5 bg-slate-200 rounded-full overflow-hidden">
+                              <div className="h-full rounded-full transition-all"
+                                   style={{width: `${barPct}%`, background: barColor}} />
+                            </div>
+                            <span className="text-[10px] text-slate-400 w-14 text-right shrink-0">
+                              {cu > 0 ? '+' : ''}{cu} σ
+                            </span>
+                          </div>
+                          <div className="text-[10px] text-slate-400 mt-0.5 leading-tight">{desc}</div>
+                        </div>
+                      );
+                    })()}
+
+                    {/* Cociente auditivo — barra + etiqueta */}
+                    {formData.griffiths_auditivo && (() => {
+                      const aud = parseFloat(formData.griffiths_auditivo);
+                      const label = aud >= 85  ? 'Normal'
+                                  : aud >= 75  ? 'Límite'
+                                  :              'Bajo lo esperado';
+                      const color = aud >= 85  ? 'text-emerald-700'
+                                  : aud >= 75  ? 'text-amber-600'
+                                  :              'text-rose-600';
+                      const barColor = aud >= 85  ? '#16a34a'
+                                     : aud >= 75  ? '#d97706'
+                                     :              '#dc2626';
+                      const barPct = Math.max(2, Math.min(98, ((aud - 50) / 95) * 100));
+                      return (
+                        <div className="pt-0.5">
+                          <div className="flex justify-between text-xs mb-1">
+                            <span className="text-slate-500">Audición 6 meses:</span>
+                            <span className={`font-black text-[11px] ${color}`}>{label}</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <div className="flex-1 h-1.5 bg-slate-200 rounded-full overflow-hidden">
+                              <div className="h-full rounded-full"
+                                   style={{width: `${barPct}%`, background: barColor}} />
+                            </div>
+                            <span className="text-[10px] text-slate-400 w-14 text-right shrink-0">
+                              {aud} pts
+                            </span>
+                          </div>
+                          <div className="text-[10px] text-slate-400 mt-0.5 leading-tight">
+                            Normal: 85–117 · Riesgo: &lt;75
+                          </div>
+                        </div>
+                      );
+                    })()}
                   </div>
                 </div>
               )}
@@ -765,7 +907,7 @@ export default function App() {
               <div className="absolute inset-0 bg-white/90 backdrop-blur-xl z-10 flex flex-col items-center justify-center rounded-[2.5rem]">
                 <Loader2 className="w-12 h-12 text-blue-700 animate-spin mb-4" />
                 <p className="font-black text-slate-700 uppercase tracking-widest text-xs">
-                  Ejecutando Modelo M7 · Calibrado (Isotonic)…
+                  Ejecutando Modelo…
                 </p>
               </div>
             )}
@@ -804,11 +946,11 @@ export default function App() {
                           {globalResult.calibrado && (
                             <div className="mt-3 bg-blue-50 text-blue-800 text-[11px] font-medium p-2.5 rounded-xl border border-blue-100 leading-tight flex items-start gap-1.5">
                               <Shield className="w-3 h-3 flex-shrink-0 mt-0.5" />
-                              <span>Calibrado (isotónica) — {probDisplay} de cada 100 pacientes con este perfil neonatal pertenecen al grupo GO-2 Bajo.</span>
+                              <span> {probDisplay} de cada 100 pacientes con este perfil neonatal pertenecen al grupo GO-2 Bajo.</span>
                             </div>
                           )}
                           <div className="mt-2 text-[10px] text-slate-400">
-                            Umbral: {globalResult.threshold_usado} · {meta.completitud_pct}% campos completados
+                             {meta.completitud_pct}% campos completados
                           </div>
                         </div>
                       </div>
@@ -828,37 +970,125 @@ export default function App() {
                             isMedRisk  ? 'text-amber-900' : 'text-emerald-900'
                           }`}>
                             {isHighRisk
-                              ? 'El perfil neonatal (bajo catch-up PC Fenton, exposición prolongada a O₂) junto con el contexto socioeducativo se asocia a alto riesgo de déficit cognitivo a los 20 años.'
+                              ? 'El perfil neonatal (crecimiento de la cabeza por debajo de lo esperado, exposición prolongada a O₂) junto con el contexto socioeducativo se asocia a alto riesgo de déficit cognitivo a los 20 años.'
                               : isMedRisk
                                 ? 'El perfil presenta factores de riesgo moderados. Se recomienda seguimiento periódico en neurodesarrollo.'
                                 : 'La trayectoria de crecimiento cerebral favorable y el contexto socioeducativo se asocian a desarrollo cognitivo dentro del rango esperado a los 20 años.'}
                           </p>
                         </div>
 
-                        {/* Derived values */}
-                        {(catchupVal !== null || zNacerVal !== null) && (
-                          <div className="bg-slate-50 rounded-2xl p-4 border border-slate-200 text-xs">
-                            <p className="font-black text-slate-500 uppercase tracking-widest mb-2 text-[10px]">
-                              Variables derivadas (Fenton 2013)
-                            </p>
-                            {zNacerVal !== null && (
-                              <div className="flex justify-between mb-1">
-                                <span className="text-slate-500">PC z-score al nacer</span>
-                                <span className={`font-black ${zNacerVal < -2 ? 'text-rose-600' : zNacerVal < -1 ? 'text-amber-600' : 'text-emerald-700'}`}>
-                                  {zNacerVal > 0 ? '+' : ''}{zNacerVal} σ
-                                </span>
+                        {/* Crecimiento cerebral neonatal — visual */}
+                        {(catchupVal !== null || zNacerVal !== null) && (() => {
+                          // ── helpers ─────────────────────────────────────────
+                          const zLabel = z =>
+                            z >= 0    ? 'En la media de sus pares'
+                            : z >= -1 ? 'Algo por debajo de sus pares'
+                            : z >= -2 ? 'Claramente por debajo'
+                            :           'Muy por debajo de sus pares';
+                          const zDesc = z =>
+                            z >= 0
+                              ? 'La cabeza tenía el tamaño esperado para su edad gestacional al nacer.'
+                              : z >= -1
+                                ? 'La cabeza era algo pequeña para su edad gestacional, dentro del rango habitual en prematuros.'
+                                : 'La cabeza era notablemente pequeña para su edad gestacional al nacer.';
+                          const cuLabel = c =>
+                            c >= 0    ? 'Recuperó posición'
+                            : c >= -0.5 ? 'Recuperación parcial'
+                            : c >= -1 ? 'Recuperación limitada'
+                            :           'No recuperó posición';
+                          const cuDesc = c =>
+                            c >= 0
+                              ? 'La cabeza creció al ritmo esperado o más rápido entre el nacimiento y las 40 semanas. Señal favorable.'
+                              : c >= -0.5
+                                ? 'La cabeza creció algo menos de lo esperado, pero dentro del rango habitual para prematuros.'
+                                : c >= -1
+                                  ? 'La cabeza creció bastante menos de lo esperado en el período neonatal más crítico.'
+                                  : 'La cabeza creció significativamente menos de lo esperado. Este es el predictor de mayor peso en el modelo.';
+                          const zColor  = z => z >= 0 ? '#16a34a' : z >= -1 ? '#d97706' : z >= -2 ? '#b45309' : '#dc2626';
+                          const cuColor = c => c >= 0 ? '#16a34a' : c >= -0.5 ? '#d97706' : c >= -1 ? '#b45309' : '#dc2626';
+                          const zTextColor  = z => z >= 0 ? 'text-emerald-700' : z >= -1 ? 'text-amber-600' : z >= -2 ? 'text-amber-700' : 'text-rose-600';
+                          const cuTextColor = c => c >= 0 ? 'text-emerald-700' : c >= -0.5 ? 'text-amber-600' : c >= -1 ? 'text-amber-700' : 'text-rose-600';
+                          // bar: z-score range -3 to +3 → 2% to 98%
+                          const zBar  = z => Math.max(2, Math.min(98, ((z  + 3) / 6) * 100));
+                          const cuBar = c => Math.max(2, Math.min(98, ((c + 3) / 6) * 100));
+                          return (
+                            <div className="bg-slate-50 rounded-2xl p-4 border border-slate-200 space-y-4">
+                              <p className="font-black text-slate-500 uppercase tracking-widest text-[10px]">
+                                Crecimiento cerebral neonatal
+                              </p>
+
+                              {/* z-score al nacer */}
+                              {zNacerVal !== null && (
+                                <div>
+                                  <div className="flex justify-between items-start mb-1.5">
+                                    <span className="text-xs text-slate-600 font-medium leading-tight">
+                                      Tamaño de la cabeza al nacer<br/>
+                                      <span className="font-normal text-slate-400 text-[10px]">vs bebés de la misma edad gestacional</span>
+                                    </span>
+                                    <span className={`text-xs font-black ml-3 text-right ${zTextColor(zNacerVal)}`}>
+                                      {zLabel(zNacerVal)}
+                                    </span>
+                                  </div>
+                                  <div className="flex items-center gap-2 mb-1">
+                                    <span className="text-[9px] text-slate-300 w-8">−3</span>
+                                    <div className="flex-1 h-2 bg-slate-200 rounded-full overflow-hidden relative">
+                                      {/* zone markers */}
+                                      <div className="absolute top-0 bottom-0 bg-emerald-100" style={{left:'50%', right:'0'}} />
+                                      <div className="absolute top-0 w-px bg-slate-400 opacity-40" style={{left:'50%'}} />
+                                      {/* value dot */}
+                                      <div className="absolute top-0 h-full w-2 h-2 rounded-full border-2 border-white shadow-sm"
+                                           style={{left:`calc(${zBar(zNacerVal)}% - 4px)`, background: zColor(zNacerVal)}} />
+                                    </div>
+                                    <span className="text-[9px] text-slate-300 w-5">+3</span>
+                                  </div>
+                                  <p className="text-[10px] text-slate-400 leading-tight">{zDesc(zNacerVal)}</p>
+                                </div>
+                              )}
+
+                              {/* recuperación entre nacer y 40 sem */}
+                              {catchupVal !== null && (
+                                <div>
+                                  <div className="flex justify-between items-start mb-1.5">
+                                    <span className="text-xs text-slate-600 font-medium leading-tight">
+                                      Crecimiento de la cabeza<br/>
+                                      <span className="font-normal text-slate-400 text-[10px]">desde el nacimiento hasta las 40 semanas Edad Corregida</span>
+                                    </span>
+                                    <span className={`text-xs font-black ml-3 text-right ${cuTextColor(catchupVal)}`}>
+                                      {cuLabel(catchupVal)}
+                                    </span>
+                                  </div>
+                                  <div className="flex items-center gap-2 mb-1">
+                                    <span className="text-[9px] text-slate-300 w-8">−3</span>
+                                    <div className="flex-1 h-2 bg-slate-200 rounded-full overflow-hidden relative">
+                                      <div className="absolute top-0 bottom-0 bg-emerald-100" style={{left:'50%', right:'0'}} />
+                                      <div className="absolute top-0 w-px bg-slate-400 opacity-40" style={{left:'50%'}} />
+                                      <div className="absolute top-0 h-full w-2 h-2 rounded-full border-2 border-white shadow-sm"
+                                           style={{left:`calc(${cuBar(catchupVal)}% - 4px)`, background: cuColor(catchupVal)}} />
+                                    </div>
+                                    <span className="text-[9px] text-slate-300 w-5">+3</span>
+                                  </div>
+                                  <p className="text-[10px] text-slate-400 leading-tight">{cuDesc(catchupVal)}</p>
+                                </div>
+                              )}
+
+                              {/* qué significa la barra */}
+                              <div className="flex items-center gap-3 text-[9px] text-slate-300 pt-1 border-t border-slate-200">
+                                <div className="flex items-center gap-1">
+                                  <div className="w-3 h-1.5 rounded bg-rose-400"/>
+                                  <span>Por debajo de sus pares</span>
+                                </div>
+                                <div className="flex items-center gap-1">
+                                  <div className="w-3 h-1.5 rounded bg-emerald-200"/>
+                                  <span>Zona esperada</span>
+                                </div>
+                                <div className="flex items-center gap-1">
+                                  <div className="w-3 h-1.5 rounded bg-emerald-500"/>
+                                  <span>Por encima</span>
+                                </div>
                               </div>
-                            )}
-                            {catchupVal !== null && (
-                              <div className="flex justify-between">
-                                <span className="text-slate-500">Catch-up PC (nacer → 40 sem)</span>
-                                <span className={`font-black ${catchupVal < -0.5 ? 'text-rose-600' : catchupVal < 0 ? 'text-amber-600' : 'text-emerald-700'}`}>
-                                  {catchupVal > 0 ? '+' : ''}{catchupVal} Δσ
-                                </span>
-                              </div>
-                            )}
-                          </div>
-                        )}
+                            </div>
+                          );
+                        })()}
                       </div>
                     </div>
 
@@ -867,7 +1097,7 @@ export default function App() {
                       <div className="flex items-center gap-3 mb-5">
                         <BarChartHorizontal className="w-6 h-6 text-blue-700" />
                         <h3 className="font-black text-slate-800 uppercase text-xs tracking-[0.2em]">
-                          Explicabilidad del Caso (SHAP)
+                          Explicabilidad del Caso 
                         </h3>
                         {results?.shap?.method === 'feature_importances_fallback' && (
                           <span className="text-[10px] text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">
@@ -888,6 +1118,7 @@ export default function App() {
                               <div className="w-3 h-3 bg-rose-400 rounded-sm" /> Factor Riesgo
                             </span>
                           </div>
+                          
                         </div>
                       ) : (
                         <div className="bg-slate-50 rounded-2xl border border-slate-200 p-6 text-center text-xs text-slate-400">
@@ -904,10 +1135,10 @@ export default function App() {
                   <div className="flex-grow flex flex-col">
                     <div className="text-center mb-8">
                       <h2 className="text-3xl font-black text-slate-900 tracking-tighter mb-2">
-                        Fenotipo Cognitivo Proyectado
+                        Perfil Cognitivo Proyectado
                       </h2>
                       <p className="text-slate-500 text-sm">
-                        Probabilidades de pertenecer a cada fenotipo según los modelos M8/M9/M10
+                        Probabilidades de pertenecer a cada perfil según la inferencia de los modelos. 
                       </p>
                     </div>
 
@@ -919,15 +1150,15 @@ export default function App() {
                           <Brain className="w-6 h-6 text-blue-600" />
                           <div>
                             <h3 className="font-black text-lg text-blue-900 leading-tight">Inteligencia</h3>
-                            <span className="text-[10px] text-slate-400 uppercase tracking-widest">WASI K=3</span>
+                            <span className="text-[10px] text-slate-400 uppercase tracking-widest"> Basado en resultados del test WASIIQ</span>
                           </div>
                         </div>
                         {wasiResult ? (
                           <div className="space-y-4 flex-grow">
                             {[
-                              ['Inteligencia Alta (GO-1)',   wasiResult.probabilidad != null && globalResult ? 100 - wasiResult.probabilidad - 10 : 0, 'emerald'],
-                              ['Inteligencia Media (GO-2)',  10, 'blue'],
-                              ['Riesgo de Déficit (GO-3)',   wasiResult.probabilidad ?? 0, 'rose'],
+                              ['Desempeño alto',   wasiResult.probabilidad != null && globalResult ? 100 - wasiResult.probabilidad - 10 : 0, 'emerald'],
+                              ['Desempeño bajo',  10, 'blue'],
+                              ['Riesgo de Déficit',   wasiResult.probabilidad ?? 0, 'rose'],
                             ].map(([label, pct, color]) => (
                               <div key={label}>
                                 <div className={`flex justify-between text-xs font-bold mb-1.5 ${color === 'rose' ? 'text-rose-600' : 'text-slate-600'}`}>
@@ -940,9 +1171,7 @@ export default function App() {
                                 </div>
                               </div>
                             ))}
-                            <p className="text-[10px] text-slate-400 text-center pt-2">
-                              M8 WASI K=3 · {wasiResult.calibrado ? 'Calibrado' : 'Raw'}
-                            </p>
+                        
                           </div>
                         ) : (
                           <p className="text-xs text-slate-400 text-center flex-grow flex items-center justify-center">
@@ -957,14 +1186,14 @@ export default function App() {
                           <Focus className="w-6 h-6 text-indigo-600" />
                           <div>
                             <h3 className="font-black text-lg text-indigo-900 leading-tight">Atención</h3>
-                            <span className="text-[10px] text-slate-400 uppercase tracking-widest">TAP K=2</span>
+                            <span className="text-[10px] text-slate-400 uppercase tracking-widest">Basado en resultados del test TAP</span>
                           </div>
                         </div>
                         {tapResult ? (
                           <div className="space-y-4 flex-grow">
                             {[
-                              ['GO-1 Attentive', 100 - (tapResult.probabilidad ?? 0), 'emerald'],
-                              ['GO-2 Inattentive', tapResult.probabilidad ?? 0, 'rose'],
+                              ['Atento', 100 - (tapResult.probabilidad ?? 0), 'emerald'],
+                              ['Distraído', tapResult.probabilidad ?? 0, 'rose'],
                             ].map(([label, pct, color]) => (
                               <div key={label}>
                                 <div className={`flex justify-between text-xs font-bold mb-1.5 ${color === 'rose' ? 'text-rose-600' : 'text-slate-600'}`}>
@@ -976,9 +1205,6 @@ export default function App() {
                                 </div>
                               </div>
                             ))}
-                            <p className="text-[10px] text-slate-400 text-center pt-2">
-                              M9 TAP K=2 · {tapResult.calibrado ? 'Calibrado' : 'Raw'}
-                            </p>
                           </div>
                         ) : (
                           <p className="text-xs text-slate-400 text-center flex-grow flex items-center justify-center">
@@ -993,14 +1219,14 @@ export default function App() {
                           <MessageSquare className="w-6 h-6 text-violet-600" />
                           <div>
                             <h3 className="font-black text-lg text-violet-900 leading-tight">Memoria Verbal</h3>
-                            <span className="text-[10px] text-slate-400 uppercase tracking-widest">CVLT K=2</span>
+                            <span className="text-[10px] text-slate-400 uppercase tracking-widest">Basado en resultados del test CVLT</span>
                           </div>
                         </div>
                         {cvltResult ? (
                           <div className="space-y-4 flex-grow">
                             {[
-                              ['GO-1 High Memory', 100 - (cvltResult.probabilidad ?? 0), 'emerald'],
-                              ['GO-2 Low Memory',  cvltResult.probabilidad ?? 0, 'rose'],
+                              ['Memoria Alta', 100 - (cvltResult.probabilidad ?? 0), 'emerald'],
+                              ['Memoria Baja',  cvltResult.probabilidad ?? 0, 'rose'],
                             ].map(([label, pct, color]) => (
                               <div key={label}>
                                 <div className={`flex justify-between text-xs font-bold mb-1.5 ${color === 'rose' ? 'text-rose-600' : 'text-slate-600'}`}>
@@ -1012,9 +1238,6 @@ export default function App() {
                                 </div>
                               </div>
                             ))}
-                            <p className="text-[10px] text-slate-400 text-center pt-2">
-                              M10 CVLT K=2 · {cvltResult.calibrado ? 'Calibrado' : 'Raw'}
-                            </p>
                           </div>
                         ) : (
                           <p className="text-xs text-slate-400 text-center flex-grow flex items-center justify-center">
@@ -1030,108 +1253,197 @@ export default function App() {
                 {/* ── TAB: VALIDACIÓN CIENTÍFICA ───────────────────────── */}
                 {activeTab === 'evidencia' && (
                   <div className="flex flex-col flex-grow">
-                    {currentEvidencia === 'go2' ? (
-                      <div className="flex-grow flex flex-col animate-in slide-in-from-right-8 duration-300">
-                        <div className="mb-6">
-                          <h2 className="text-2xl font-black text-slate-900 tracking-tighter mb-1">
-                            Correlatos a los 20 años — fenotipo GO-2 Bajo
-                          </h2>
-                          <p className="text-slate-500 text-sm">
-                            Hallazgos en participantes de la cohorte KMC-400-20y con perfil similar al de este paciente
-                          </p>
-                        </div>
-                        <div className="grid md:grid-cols-3 gap-5 flex-grow">
-                          <div className="flex flex-col gap-3">
-                            <div className="text-slate-500 font-black text-[11px] uppercase tracking-widest flex items-center gap-2">
-                              <Brain className="w-4 h-4" /> Huella Cerebral (MRI)
-                            </div>
-                            <div className="bg-rose-50 border border-rose-200 rounded-2xl p-5 flex-grow">
-                              <h4 className="text-rose-900 font-bold mb-4">Tractos con menor integridad</h4>
-                              <DotItem label="FA cíngulo izquierdo" value="q<0.01" valColor="rose" />
-                              <DotItem label="FA corticoespinal dcho." value="q<0.05" valColor="rose" />
-                              <DotItem label="FA fascículo uncinado" value="q<0.05" valColor="rose" />
-                              <p className="text-[10px] text-rose-700 mt-3 leading-tight">
-                                OLS ajustado por sexo e ICV · 6/11 tractos TRAC significativos
-                              </p>
-                            </div>
-                          </div>
-                          <div className="flex flex-col gap-3">
-                            <div className="text-slate-500 font-black text-[11px] uppercase tracking-widest flex items-center gap-2">
-                              <FileText className="w-4 h-4" /> Desempeño Adulto
-                            </div>
-                            <div className="bg-rose-50 border border-rose-200 rounded-2xl p-5 flex-grow">
-                              <h4 className="text-rose-900 font-bold mb-4">Significativamente menores</h4>
-                              <DotItem label="ICFES global" value="−8.4 pts" valColor="rose" />
-                              <DotItem label="Lectura crítica" value="−8.6 pts" valColor="rose" />
-                              <DotItem label="Audición (9/9 frec.)" value="↑ umbral" valColor="rose" />
-                              <DotItem label="Tiempo reacción TAP-WM" value="+39 ms" valColor="rose" />
-                              <p className="text-[10px] text-rose-700 mt-3 leading-tight">
-                                Mann-Whitney U · FDR BH · 78/243 variables q&lt;0.05
-                              </p>
-                            </div>
-                          </div>
-                          <div className="flex flex-col gap-3">
-                            <div className="text-slate-500 font-black text-[11px] uppercase tracking-widest flex items-center gap-2">
-                              <CheckCircle className="w-4 h-4" /> Sin Diferencia Significativa
-                            </div>
-                            <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-5 flex-grow">
-                              <h4 className="text-emerald-900 font-bold mb-4">Perfil metabólico equivalente</h4>
-                              <DotItem label="IMC a los 20 años" value="ns" valColor="emerald" />
-                              <DotItem label="Presión arterial" value="ns" valColor="emerald" />
-                              <DotItem label="Glicemia / lípidos" value="ns" valColor="emerald" />
-                              <p className="text-[10px] text-emerald-700 mt-3 leading-tight">
-                                El riesgo es específicamente cognitivo-neurológico, no metabólico. El seguimiento metabólico corresponde a la prematuridad en general.
-                              </p>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="flex-grow flex flex-col animate-in slide-in-from-left-8 duration-300">
-                        <div className="mb-8">
-                          <h2 className="text-2xl font-black text-slate-900 tracking-tighter mb-1">
-                            Correlatos a los 20 años — fenotipo GO-1 Alto
-                          </h2>
-                          <p className="text-slate-500 text-sm">
-                            Hallazgos en participantes de la cohorte con perfil similar al de este paciente
-                          </p>
-                        </div>
-                        <div className="grid md:grid-cols-2 gap-6 flex-grow">
-                          <div className="bg-emerald-50 border border-emerald-200 rounded-3xl p-6 flex flex-col">
-                            <div className="flex items-center gap-3 mb-5 text-emerald-900 font-black text-lg">
-                              <Brain className="w-6 h-6 text-emerald-600" /> Integridad cerebral normal
-                            </div>
-                            <DotItem label="FA cíngulo izquierdo" value="GO-1: 0.412" valColor="emerald" />
-                            <DotItem label="FA corticoespinal dcho." value="GO-1: 0.558" valColor="emerald" />
-                            <p className="text-[10px] text-emerald-700 mt-auto pt-3">
-                              Mayor FA vs GO-2 en tractos de memoria verbal y coordinación motora
-                            </p>
-                          </div>
-                          <div className="bg-emerald-50 border border-emerald-200 rounded-3xl p-6 flex flex-col">
-                            <div className="flex items-center gap-3 mb-5 text-emerald-900 font-black text-lg">
-                              <FileText className="w-6 h-6 text-emerald-600" /> Desempeño dentro del rango esperado
-                            </div>
-                            <DotItem label="ICFES global" value="53.2 pts" valColor="emerald" />
-                            <DotItem label="WASI FSIQ" value="≈91.7" valColor="emerald" />
-                            <DotItem label="Umbral auditivo (500 Hz)" value="18.2 dB" valColor="emerald" />
-                            <p className="text-[10px] text-emerald-700 mt-auto pt-3">
-                              El riesgo cognitivo específico del fenotipo GO-2 no es predominante en este perfil. Se recomienda seguimiento estándar para prematuros.
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                    <div className="mt-6 pt-5 border-t border-slate-200 flex justify-between items-center">
-                      <span className="text-[11px] text-slate-400">
-                        KMC-400-20y · n=491 · Fundación Canguro / Uniandes 2026
-                      </span>
-                      <button
-                        onClick={() => setEvidOverride(currentEvidencia === 'go2' ? 'go1' : 'go2')}
-                        className="text-xs font-black text-slate-600 bg-slate-100 border border-slate-200 hover:bg-slate-200 px-5 py-2.5 rounded-xl flex items-center gap-2">
-                        Ver hallazgos en {currentEvidencia === 'go2' ? 'GO-1 Alto' : 'GO-2 Bajo'}
-                        <ChevronRight className="w-3 h-3" />
-                      </button>
+
+                    {/* ── Título adaptativo ─────────────────────────────── */}
+                    <div className="mb-6">
+                      <h2 className="text-2xl font-black text-slate-900 tracking-tighter mb-1">
+                        {isHighRisk || isMedRisk
+                          ? 'Qué sabemos de pacientes con este perfil'
+                          : 'Perspectiva a los 20 años'}
+                      </h2>
+                      <p className="text-slate-500 text-sm">
+                        Basado en el seguimiento de 20 años realizado por la Fundación Canguro 
+                      </p>
                     </div>
+
+                    {/* ── Narrativa principal ───────────────────────────── */}
+                    {isHighRisk || isMedRisk ? (
+                      <div className="space-y-4 flex-grow animate-in fade-in duration-300">
+
+                        {/* Párrafo 1 — Cerebro */}
+                        <div className="bg-rose-50 border border-rose-100 rounded-2xl p-5">
+                          <div className="flex items-start gap-3">
+                            <Brain className="w-5 h-5 text-rose-500 flex-shrink-0 mt-0.5" />
+                            <div>
+                              <p className="text-sm font-black text-rose-900 mb-2">
+                                Desarrollo cerebral
+                              </p>
+                              <p className="text-sm text-rose-800 leading-relaxed">
+                                Los participantes de la cohorte con un perfil neonatal similar al de este paciente
+                                mostraron, a los 20 años, una menor densidad de las fibras de sustancia blanca
+                                en las regiones que conectan la memoria con el lenguaje y el movimiento.
+                                Esto no implica una lesión visible, sino que el cerebro organizó sus conexiones
+                                de forma ligeramente distinta durante el período crítico neonatal —
+                                probablemente por la conjunción del crecimiento cerebral más lento y la exposición
+                                prolongada al entorno de cuidados intensivos.
+                              </p>
+                              <EvidenceImg
+                                src={IMG.fa_tractos}
+                                alt="Conectividad cerebral por perfil GO-i"
+                                caption="Diferencias en densidad de fibras cerebrales · cohorte KMC-400-20y"
+                                onZoom={(src,alt) => setModalImg({src,alt})}
+                              />
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Párrafo 2 — Aprendizaje y rendimiento */}
+                        <div className="bg-amber-50 border border-amber-100 rounded-2xl p-5">
+                          <div className="flex items-start gap-3">
+                            <FileText className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+                            <div>
+                              <p className="text-sm font-black text-amber-900 mb-2">
+                                Aprendizaje y rendimiento académico
+                              </p>
+                              <p className="text-sm text-amber-800 leading-relaxed">
+                                En las pruebas ICFES a los 20 años, los jóvenes con este fenotipo obtuvieron
+                                en promedio alrededor de 8 puntos menos en lectura y comprensión.
+                                Esto equivale a la diferencia que se observa, en promedio, entre quien
+                                tuvo acceso a acompañamiento académico sostenido y quien no.
+                                No es un déficit que cierre puertas por sí solo, pero sí uno que se
+                                hace visible cuando el entorno no provee los apoyos adicionales
+                                que este perfil requiere.
+                              </p>
+                              <EvidenceImg
+                                src={IMG.icfes}
+                                alt="Rendimiento académico ICFES por perfil"
+                                caption="Puntaje ICFES a los 20 años — comparación entre perfiles"
+                                onZoom={(src,alt) => setModalImg({src,alt})}
+                              />
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Párrafo 3 — Audición y atención */}
+                        <div className="bg-rose-50 border border-rose-100 rounded-2xl p-5">
+                          <div className="flex items-start gap-3">
+                            <Focus className="w-5 h-5 text-rose-500 flex-shrink-0 mt-0.5" />
+                            <div>
+                              <p className="text-sm font-black text-rose-900 mb-2">
+                                Audición y velocidad de procesamiento
+                              </p>
+                              <p className="text-sm text-rose-800 leading-relaxed">
+                                Los jóvenes del grupo de riesgo necesitaron unos 40 milisegundos más
+                                para responder a estímulos auditivos en tareas de atención sostenida —
+                                una diferencia imperceptible en conversación, pero que acumulada
+                                en un aula o un entorno laboral de alta demanda puede traducirse
+                                en mayor fatiga cognitiva y menor rendimiento bajo presión.
+                                Adicionalmente, presentaron umbrales auditivos ligeramente elevados
+                                en todas las frecuencias, lo que sugiere la utilidad de una evaluación
+                                audiológica de seguimiento.
+                              </p>
+                              <EvidenceImg
+                                src={IMG.audiometria}
+                                alt="Perfil audiométrico por perfil"
+                                caption="Umbrales auditivos a los 20 años — comparación entre perfiles"
+                                onZoom={(src,alt) => setModalImg({src,alt})}
+                              />
+                            </div>
+                          </div>
+                        </div>
+
+                      </div>
+
+                    ) : (
+
+                      /* ── Narrativa GO-1 Alto ─────────────────────────── */
+                      <div className="space-y-4 flex-grow animate-in fade-in duration-300">
+
+                        <div className="bg-emerald-50 border border-emerald-100 rounded-2xl p-5">
+                          <div className="flex items-start gap-3">
+                            <Brain className="w-5 h-5 text-emerald-600 flex-shrink-0 mt-0.5" />
+                            <div>
+                              <p className="text-sm font-black text-emerald-900 mb-2">
+                                Desarrollo cerebral
+                              </p>
+                              <p className="text-sm text-emerald-800 leading-relaxed">
+                                Los participantes con un perfil neonatal similar al de este paciente
+                                mostraron, a los 20 años, una conectividad cerebral dentro del rango
+                                esperado para la cohorte de prematuros. Las fibras que conectan
+                                la memoria con el lenguaje y el movimiento presentaron una densidad
+                                comparable al grupo de mejor rendimiento, lo que sugiere que
+                                el período neonatal transcurrió sin comprometer significativamente
+                                la organización de las conexiones cerebrales de largo plazo.
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="bg-emerald-50 border border-emerald-100 rounded-2xl p-5">
+                          <div className="flex items-start gap-3">
+                            <FileText className="w-5 h-5 text-emerald-600 flex-shrink-0 mt-0.5" />
+                            <div>
+                              <p className="text-sm font-black text-emerald-900 mb-2">
+                                Aprendizaje y vida adulta
+                              </p>
+                              <p className="text-sm text-emerald-800 leading-relaxed">
+                                A los 20 años, los jóvenes con este perfil alcanzaron puntajes ICFES
+                                y de memoria verbal dentro del rango de la cohorte,
+                                con un FSIQ promedio cercano a 92 puntos.
+                                Esto no significa ausencia de cualquier desafío — la prematuridad
+                                en sí misma puede dejar huellas sutiles — pero el riesgo de déficit
+                                cognitivo marcado que predice el fenotipo GO-2 no es el
+                                perfil predominante en pacientes como éste.
+                                Se recomienda el seguimiento estándar para prematuros,
+                                sin necesidad de intensificar el acompañamiento por este
+                                motivo específico.
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4">
+                          <p className="text-xs text-slate-500 leading-relaxed">
+                            <span className="font-semibold">Nota clínica:</span> Este resultado refleja
+                            el fenotipo cognitivo proyectado basado en el perfil neonatal.
+                            Factores posteriores — calidad del entorno educativo, eventos de salud
+                            intercurrentes, acceso a estimulación — también influyen en el desarrollo.
+                            El seguimiento periódico del neurodesarrollo sigue siendo recomendable
+                            para cualquier prematuro.
+                          </p>
+                        </div>
+
+                      </div>
+
+                    )}
+                    {/* ── SHAP global — qué factores determinan la predicción ── */}
+                    <div className="mt-5 bg-slate-50 border border-slate-200 rounded-2xl p-5">
+                      <div className="flex items-start gap-3 mb-3">
+                        <BarChartHorizontal className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
+                        <div>
+                          <p className="text-sm font-black text-slate-800 mb-1">
+                            Qué factores determinan la predicción
+                          </p>
+                          <p className="text-sm text-slate-500 leading-relaxed">
+                            Cada punto en el gráfico es un paciente de la cohorte. Las barras muestran
+                            cuánto peso tiene cada variable neonatal en el modelo —{' '}
+                            <span className="font-semibold text-slate-700">
+                              la velocidad de crecimiento del peso y la recuperación del perímetro
+                              cefálico son los predictores más influyentes
+                            </span>, seguidos del contexto socioeducativo y los días de oxigenoterapia.
+                            Los puntos rojos empujan hacia mayor riesgo; los azules hacia menor riesgo.
+                          </p>
+                        </div>
+                      </div>
+                      <EvidenceImg
+                        src={IMG.shap_global}
+                        alt="SHAP beeswarm — importancia de variables · cohorte KMC-400-20y"
+                        caption="Importancia SHAP en n=383 pacientes · rojo = mayor riesgo · azul = menor riesgo · Modelo M7"
+                        onZoom={(src,alt) => setModalImg({src,alt})}
+                      />
+                    </div>
+
+
                   </div>
                 )}
               </div>
@@ -1145,7 +1457,6 @@ export default function App() {
         <p className="flex items-center justify-center gap-2">
           <Info className="w-4 h-4" />
           Herramienta de apoyo clínico. No reemplaza el juicio del profesional de salud.
-          Modelo M7 · KMC-400-20y · AUC=0.678 · Calibrado (isotónica)
         </p>
       </footer>
     </div>
