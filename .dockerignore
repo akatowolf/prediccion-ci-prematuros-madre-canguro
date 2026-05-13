@@ -1,0 +1,6 @@
+venv/
+kmc_env/
+__pycache__/
+.git/
+.env
+*.pem
