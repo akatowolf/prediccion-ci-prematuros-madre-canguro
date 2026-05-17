@@ -25,9 +25,6 @@ const IMG = {
   fa_tractos   : new URL('./assets/evidencia/fa_tractos.png',    import.meta.url).href,
   icfes        : new URL('./assets/evidencia/icfes_comparacion.png', import.meta.url).href,
   audiometria  : new URL('./assets/evidencia/audiometria.png',   import.meta.url).href,
-  shap_global  : new URL('./assets/evidencia/shap_global.png',   import.meta.url).href,
-  calibracion  : new URL('./assets/evidencia/calibracion.png',   import.meta.url).href,
-  roc_m7       : new URL('./assets/evidencia/roc_m7.png',        import.meta.url).href,
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -194,6 +191,35 @@ const ShapBar = ({ item, maxAbs }) => {
         <span className={`text-xs font-bold ml-3 w-12 flex-shrink-0 ${
           isRisk ? 'text-rose-600' : 'text-emerald-600'
         }`}>{valText}</span>
+      </div>
+    </div>
+  );
+};
+
+const GlobalShapChart = ({ shapData = [] }) => {
+  const displayData = shapData.slice(0, 8);
+  if (!displayData.length) {
+    return (
+      <div className="bg-white rounded-3xl border border-slate-200 p-6 text-center text-slate-500">
+        SHAP global no disponible. Carga un caso para ver los factores más influyentes.
+      </div>
+    );
+  }
+
+  const maxAbs = Math.max(...displayData.map(item => Math.abs(item.shap)));
+
+  return (
+    <div className="bg-white rounded-3xl border border-slate-200 p-6">
+      {displayData.map(item => (
+        <ShapBar key={item.feature} item={item} maxAbs={maxAbs} />
+      ))}
+      <div className="mt-5 pt-4 border-t border-slate-200 flex justify-center gap-8 text-[10px] font-black uppercase tracking-widest text-slate-500">
+        <span className="flex items-center gap-2">
+          <div className="w-3 h-3 bg-emerald-400 rounded-sm" /> Protector
+        </span>
+        <span className="flex items-center gap-2">
+          <div className="w-3 h-3 bg-rose-400 rounded-sm" /> Factor Riesgo
+        </span>
       </div>
     </div>
   );
@@ -1750,12 +1776,7 @@ export default function App() {
                           </p>
                         </div>
                       </div>
-                      <EvidenceImg
-                        src={IMG.shap_global}
-                        alt="SHAP beeswarm — importancia de variables · cohorte KMC-400-20y"
-                        caption="Importancia SHAP en n=383 pacientes · rojo = mayor riesgo · azul = menor riesgo · Modelo M7"
-                        onZoom={(src,alt) => setModalImg({src,alt})}
-                      />
+                      <GlobalShapChart shapData={allShap} />
                     </div>
 
 

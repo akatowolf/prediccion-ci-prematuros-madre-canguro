@@ -3,6 +3,8 @@ prediccion-ci-prematuros-madre-canguro
 
 El proyecto surge de la Fundación Canguro, ONG colombiana líder en la investigación y difusión del Método Madre Canguro (MMC) a nivel global. Desde 1978, la Fundación encabeza un estudio de seguimiento longitudinal pionero que compara el MMC frente al cuidado en incubadora mediante ensayos controlados aleatorizados. Los resultados, sustentados en neuroimágenes y tests cognitivos, demuestran que el MMC favorece significativamente el desarrollo neurológico y cognitivo del prematuro hasta la adultez.
 
+Este repositorio integra un backend de inferencia en FastAPI con un frontend React/Vite que muestra resultados clínicos, predicciones de riesgo y explicabilidad SHAP mediante gráficos nativos.
+
 Project Organization
 ------------
 
@@ -28,6 +30,7 @@ Project Organization
     ├── reports            <- Generated analysis as HTML, PDF, LaTeX, etc.
     │   └── figures        <- Generated graphics and figures to be used in reporting
     │
+    ├── api                <- Backend FastAPI service con inferencia, SHAP y análisis de clustering.
     ├── requirements.txt   <- The requirements file for reproducing the analysis environment, e.g.
     │                         generated with `pip freeze > requirements.txt`
     │
@@ -51,6 +54,11 @@ Project Organization
     │
     └── tox.ini            <- tox file with settings for running tox; see tox.readthedocs.io
 
+
+Additional documentation:
+
+    ├── REPO_DOCUMENTATION.md <- Documento específico con la arquitectura del repositorio,
+    │                           flujo backend/frontend, análisis de clustering y pasos de ejecución.
 
 --------
 

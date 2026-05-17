@@ -57,13 +57,26 @@ def fenton_z(pc_cm: float, eg_weeks: float) -> Optional[float]:
 BUNDLES: dict = {}
 LOAD_STATUS = {"state": "loading", "errors": [], "loaded": []}
 
+BASE_DIR = os.path.dirname(__file__)
 BUNDLE_FILES = {
-    "global": "kmc20_model_bundle_calibrated.joblib",
-    "wasi"  : "m8_modelo_binary_best.joblib",
-    "tap"   : "m9_tap_bundle.joblib",
-    "cvlt"  : "m10_cvlt_bundle.joblib",
+    "global": os.path.join(BASE_DIR, "kmc20_model_bundle_calibrated.joblib"),
+    "wasi": os.path.join(BASE_DIR, "m8_modelo_binary_best.joblib"),
+    "tap": os.path.join(BASE_DIR, "m9_tap_bundle.joblib"),
+    "cvlt": os.path.join(BASE_DIR, "m10_cvlt_bundle.joblib"),
 }
-
+def _resolve_app_data_path(*parts):
+    root = os.path.dirname(__file__)
+    candidates = [
+        os.path.normpath(os.path.join(root, '..', 'app', *parts)),
+        os.path.normpath(os.path.join(root, '..', 'src', 'app', *parts)),
+        os.path.normpath(os.path.join(root, '..', 'src', *parts)),
+    ]
+    for path in candidates:
+        if os.path.exists(path):
+            return path
+    raise FileNotFoundError(
+        'No se encontró el archivo de datos. Buscado en: ' + ', '.join(candidates)
+    )
 CLUSTER_DOMAIN_VARIANTS = [
     {
         "key": "cvlt",
@@ -367,13 +380,8 @@ def _percentile(sorted_values, p):
 
 
 def _load_cluster_domain_analysis():
-    root = os.path.dirname(__file__)
-    dataset_path = os.path.normpath(os.path.join(root, '..', 'app', 'data', 'processed', 'kmc_dataset_procesado_completo.csv'))
-    cluster_path = os.path.normpath(os.path.join(root, '..', 'app', 'data', 'processed', 'clusters_GOi.csv'))
-    if not os.path.exists(dataset_path):
-        raise FileNotFoundError(f"Dataset no encontrado: {dataset_path}")
-    if not os.path.exists(cluster_path):
-        raise FileNotFoundError(f"Cluster labels no encontrados: {cluster_path}")
+    dataset_path = _resolve_app_data_path('data', 'processed', 'kmc_dataset_procesado_completo.csv')
+    cluster_path = _resolve_app_data_path('data', 'processed', 'clusters_GOi.csv')
 
     with open(cluster_path, newline='', encoding='utf-8') as f:
         reader = csv.DictReader(f)
@@ -505,9 +513,8 @@ def _load_pca_cluster_data():
     if PCA_CLUSTER_CACHE is not None:
         return PCA_CLUSTER_CACHE
 
-    root = os.path.dirname(__file__)
-    dataset_path = os.path.normpath(os.path.join(root, '..', 'app', 'data', 'processed', 'kmc_dataset_procesado_completo.csv'))
-    cluster_path = os.path.normpath(os.path.join(root, '..', 'app', 'data', 'processed', 'clusters_GOi.csv'))
+    dataset_path = _resolve_app_data_path('data', 'processed', 'kmc_dataset_procesado_completo.csv')
+    cluster_path = _resolve_app_data_path('data', 'processed', 'clusters_GOi.csv')
 
     if not os.path.exists(dataset_path):
         raise FileNotFoundError(f"Dataset no encontrado: {dataset_path}")
